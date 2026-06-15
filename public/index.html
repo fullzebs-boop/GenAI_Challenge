@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnyMeal Roulette & Mood Dashboard</title>
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍱</text></svg>">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pastel: {
+                            pink: '#ffb3ba',
+                            orange: '#ffdfba',
+                            yellow: '#ffffba',
+                            green: '#baffc9',
+                            blue: '#bae1ff',
+                            purple: '#e8baff'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Quiz Slide Animations */
+        .quiz-slide { transition: transform 0.4s ease-in-out, opacity 0.4s ease-in-out; }
+        .slide-in-right { transform: translateX(100%); opacity: 0; position: absolute; top:0; left:0; width:100%; pointer-events: none;}
+        .slide-out-left { transform: translateX(-100%); opacity: 0; position: absolute; top:0; left:0; width:100%; pointer-events: none;}
+        .slide-active { transform: translateX(0); opacity: 1; position: relative; z-index: 10; pointer-events: auto;}
+    </style>
+</head>
+<body id="app-body" class="bg-gradient-to-br from-rose-50 via-sky-50 to-amber-50 min-h-screen text-slate-800 font-sans overflow-x-hidden relative selection:bg-sky-200 selection:text-sky-900 transition-all duration-1000">
+
+    <!-- Screen Filter Overlay for Energy Levels (Fixes position:fixed bug) -->
+    <div id="screen-filter" class="fixed inset-0 pointer-events-none z-[45] transition-all duration-1000" style="backdrop-filter: saturate(1) brightness(1);"></div>
+
+    <!-- Toast Notification -->
+    <div id="toast-container" class="fixed top-6 left-1/2 -translate-x-1/2 z-[60] transform -translate-y-20 opacity-0 transition-all duration-500 pointer-events-none">
+        <div class="bg-emerald-500 text-white px-6 py-3 rounded-full font-bold shadow-[0_10px_20px_rgba(16,185,129,0.3)] flex items-center gap-3">
+            <i class="fas fa-check-circle text-xl"></i>
+            <span id="toast-message">Dashboard Updated!</span>
+        </div>
+    </div>
+
+    <!-- Ambient Layer for Meal Period -->
+    <div id="ambient-layer" class="fixed inset-0 z-[-1] pointer-events-none transition-colors duration-1000 bg-transparent"></div>
+
+    <!-- Ambient Gradient Blobs -->
+    <div class="fixed inset-0 z-[-2] overflow-hidden pointer-events-none">
+        <div class="absolute -top-[20%] -left-[10%] w-[50vw] h-[50vw] rounded-full bg-pink-200/40 blur-[100px] transition-all duration-1000 ease-in-out animate-blob" id="blob-1"></div>
+        <div class="absolute top-[40%] -right-[10%] w-[40vw] h-[40vw] rounded-full bg-sky-200/40 blur-[100px] transition-all duration-1000 ease-in-out animate-blob" id="blob-2"></div>
+        <div class="absolute -bottom-[20%] left-[20%] w-[60vw] h-[60vw] rounded-full bg-yellow-200/30 blur-[120px] transition-all duration-1000 ease-in-out animate-blob" id="blob-3"></div>
+    </div>
+
+    <!-- VIEW A: Welcome -->
+    <div id="view-welcome" class="min-h-screen flex items-center justify-center transition-all duration-700">
+        <div class="glass-card p-12 rounded-[2.5rem] text-center max-w-lg w-full transform hover:scale-[1.02] transition-transform duration-500 mx-4 relative overflow-hidden">
+            <div class="mb-6 inline-block p-4 rounded-full bg-white/50 shadow-sm relative z-10">
+                <i class="fas fa-utensils text-4xl text-rose-400"></i>
+            </div>
+            <h1 class="text-4xl font-extrabold text-slate-800 mb-2 tracking-tight relative z-10">AnyMeal Roulette</h1>
+            <p class="text-slate-500 mb-10 font-medium tracking-wide relative z-10">Let us pick your next meal</p>
+            
+            <div class="relative mb-8 z-10">
+                <i class="fas fa-user-astronaut absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
+                <input type="text" id="username-input" placeholder="Enter your nickname..." class="w-full pl-14 pr-5 py-4 rounded-2xl bg-white/60 border border-white focus:outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 text-slate-700 font-medium placeholder-slate-400 transition-all shadow-inner text-lg">
+            </div>
+            
+            <button id="btn-start" class="w-full bg-gradient-to-r from-rose-400 to-orange-400 hover:from-rose-500 hover:to-orange-500 text-white font-bold py-4 rounded-2xl shadow-[0_10px_25px_rgba(2fb,113,133,0.3)] hover:shadow-[0_15px_30px_rgba(2fb,113,133,0.4)] transition-all duration-300 transform hover:-translate-y-1 text-lg tracking-wide relative z-10">
+                Start Exploring 🚀
+            </button>
+        </div>
+    </div>
+
+    <!-- VIEW B: Main Game -->
+    <div id="view-main" class="min-h-screen flex flex-col p-4 md:p-8 hidden transition-opacity duration-700">
+        <div class="max-w-7xl w-full mx-auto flex-1 flex flex-col">
+            <!-- Header -->
+            <header class="flex flex-wrap justify-between items-center mb-8 glass-card px-8 py-5 rounded-3xl relative z-10">
+                <!-- Left: Logo & App Name -->
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-400 to-orange-400 flex items-center justify-center text-white shadow-sm shadow-rose-200">
+                        <i class="fas fa-utensils text-2xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-black text-slate-800 tracking-tight">AnyMeal Roulette</h1>
+                    </div>
+                </div>
+                
+                <!-- Right: User Info, Time, Analytics -->
+                <div class="flex flex-wrap items-center gap-4 md:gap-6 mt-4 md:mt-0">
+                    <!-- User Profile -->
+                    <div class="flex items-center gap-3 bg-white/40 px-4 py-2 rounded-2xl border border-white shadow-sm">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center border-2 border-white shadow-inner text-indigo-500">
+                            <i class="fas fa-user-astronaut"></i>
+                        </div>
+                        <div class="hidden sm:block">
+                            <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Welcome Back</p>
+                            <div class="flex items-center gap-2 group cursor-pointer" id="edit-name-btn" title="Edit name">
+                                <span class="text-base font-extrabold text-slate-800" id="display-name">Guest</span>
+                                <i class="fas fa-pen text-slate-300 group-hover:text-indigo-500 transition-colors text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Time -->
+                    <div class="hidden md:block text-right bg-white/40 px-4 py-2 rounded-2xl border border-white shadow-sm">
+                        <p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest" id="live-date">---</p>
+                        <p class="text-sm font-black text-sky-600 font-mono tracking-wider" id="live-time">--:--:--</p>
+                    </div>
+                    
+                    <!-- Analytics Button -->
+                    <div class="flex gap-2">
+                        <a href="/city.html" target="_blank" class="group bg-gradient-to-r from-emerald-400 to-teal-500 text-white px-5 py-3 rounded-2xl font-bold transition-all shadow-[0_8px_20px_rgba(16,185,129,0.3)] hover:shadow-[0_12px_25px_rgba(16,185,129,0.4)] hover:-translate-y-0.5 flex items-center gap-2">
+                            <i class="fas fa-vr-cardboard group-hover:scale-110 transition-transform"></i> 3D Hub
+                        </a>
+                        <button id="btn-go-dashboard" class="group bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-5 py-3 rounded-2xl font-bold transition-all shadow-[0_8px_20px_rgba(99,102,241,0.3)] hover:shadow-[0_12px_25px_rgba(99,102,241,0.4)] hover:-translate-y-0.5 flex items-center gap-2">
+                            <i class="fas fa-chart-pie group-hover:rotate-12 transition-transform"></i> Analytics
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <div class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10">
+                <!-- Left Col: Form (Takes up 5 cols) -->
+                <div class="lg:col-span-5 flex flex-col gap-6">
+                    
+                    <!-- Main Configuration Card -->
+                    <div class="glass-card p-8 rounded-[2.5rem] flex flex-col justify-center relative overflow-hidden">
+                        
+                        <!-- Take a Quiz Button (New in V7) -->
+                        <button id="btn-open-quiz" class="mb-4 w-full bg-gradient-to-r from-pink-400 to-purple-500 text-white px-6 py-4 rounded-2xl font-extrabold shadow-[0_8px_20px_rgba(236,72,153,0.3)] hover:shadow-[0_12px_25px_rgba(236,72,153,0.4)] hover:-translate-y-1 transition-all flex justify-between items-center group">
+                            <span class="flex items-center gap-3"><i class="fas fa-magic text-xl group-hover:animate-spin"></i> Can't Decide? Take a Quiz!</span>
+                            <i class="fas fa-chevron-right opacity-70 group-hover:opacity-100 group-hover:translate-x-1 transition-all"></i>
+                        </button>
+                        
+                        <!-- Play with Friends (New in V8) -->
+                        <button onclick="window.location.href='/room.html'" class="mb-8 w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-4 rounded-2xl font-extrabold shadow-[0_8px_20px_rgba(59,130,246,0.3)] hover:shadow-[0_12px_25px_rgba(59,130,246,0.4)] hover:-translate-y-1 transition-all flex justify-between items-center group">
+                            <span class="flex items-center gap-3"><i class="fas fa-users text-xl group-hover:scale-110 transition-transform"></i> Play with Friends (AI Room)</span>
+                            <i class="fas fa-chevron-right opacity-70 group-hover:opacity-100 group-hover:translate-x-1 transition-all"></i>
+                        </button>
+
+                        <h3 class="text-2xl font-extrabold text-slate-800 mb-6"><i class="fas fa-sliders-h text-sky-400 mr-2"></i> Configuration</h3>
+                        
+                        <div class="mb-8">
+                            <label class="block text-slate-600 text-sm font-bold uppercase tracking-wider mb-3"><i class="fas fa-clock text-orange-400 mr-2"></i>Meal Period</label>
+                            <div class="flex gap-3" id="meal-toggle">
+                                <button class="meal-btn flex-1 py-3 rounded-2xl bg-white/60 border border-white text-slate-600 font-bold hover:bg-white transition-all shadow-sm" data-val="breakfast">☀️ Breakfast</button>
+                                <button class="meal-btn flex-1 py-3 rounded-2xl bg-white/60 border border-white text-slate-600 font-bold hover:bg-white transition-all shadow-sm" data-val="lunch">☁️ Lunch</button>
+                                <button class="meal-btn flex-1 py-3 rounded-2xl bg-white/60 border border-white text-slate-600 font-bold hover:bg-white transition-all shadow-sm" data-val="dinner">🌙 Dinner</button>
+                            </div>
+                        </div>
+
+                        <div class="mb-8">
+                            <label class="block text-slate-600 text-sm font-bold uppercase tracking-wider mb-3"><i class="fas fa-heart text-pink-400 mr-2"></i>Current Mood</label>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="mood-toggle">
+                                <button class="mood-btn py-4 rounded-2xl bg-white/60 border border-white text-slate-600 font-bold hover:bg-white transition-all shadow-sm flex flex-col items-center gap-1" data-val="Relaxed"><span class="text-2xl">🥳</span> Relaxed</button>
+                                <button class="mood-btn py-4 rounded-2xl bg-white/60 border border-white text-slate-600 font-bold hover:bg-white transition-all shadow-sm flex flex-col items-center gap-1" data-val="Drained"><span class="text-2xl">🤯</span> Drained</button>
+                                <button class="mood-btn py-4 rounded-2xl bg-white/60 border border-white text-slate-600 font-bold hover:bg-white transition-all shadow-sm flex flex-col items-center gap-1" data-val="Stressed"><span class="text-2xl">🥵</span> Stressed</button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <label class="block text-slate-600 text-sm font-bold uppercase tracking-wider"><i class="fas fa-bolt text-yellow-500 mr-2"></i>Energy Level</label>
+                                <span id="energy-val" class="font-extrabold text-sky-500 bg-sky-50 px-3 py-1 rounded-lg border border-sky-100">50%</span>
+                            </div>
+                            <input type="range" id="energy-slider" min="10" max="100" step="10" value="50" class="w-full h-3 bg-white/80 rounded-full appearance-none cursor-pointer border border-white shadow-inner transition-colors">
+                            <div class="flex justify-between text-xs text-slate-400 mt-2 font-bold">
+                                <span>10%</span>
+                                <span>100%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Latest Spin Result Card (New in V7) -->
+                    <div class="glass-card p-6 rounded-[2rem] flex flex-col relative overflow-hidden" id="latest-pick-container">
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-500 flex items-center justify-center shadow-inner"><i class="fas fa-check"></i></div>
+                            <h4 class="text-sm font-extrabold text-slate-700 uppercase tracking-widest">Your Current Pick</h4>
+                        </div>
+                        <p class="text-2xl font-black text-slate-800 ml-11" id="latest-pick-name">---</p>
+                        <p class="text-xs font-bold text-slate-400 ml-11 mt-1" id="latest-pick-time">Not selected yet</p>
+                        <div id="latest-pick-meta" class="ml-11 mt-3 flex flex-wrap items-center gap-2 hidden">
+                            <span class="text-[10px] font-bold px-2 py-1 bg-white/60 border border-white rounded-md text-pink-500 shadow-sm" id="latest-pick-mood"></span>
+                            <span class="text-[10px] font-bold px-2 py-1 bg-white/60 border border-white rounded-md text-yellow-500 shadow-sm" id="latest-pick-energy"></span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Right Col: Roulette OR Manual Grid -->
+                <div class="lg:col-span-7 glass-card p-6 md:p-8 rounded-[2.5rem] flex flex-col relative min-h-[600px]">
+                    
+                    <!-- Mode Switcher & Filters Header -->
+                    <div class="w-full flex flex-col md:flex-row items-center justify-between gap-4 mb-4 z-30">
+                        <div class="flex items-center bg-white/50 p-1 rounded-full border border-white shadow-sm self-start md:self-auto">
+                            <button id="mode-spin" class="mode-btn active px-4 py-1.5 rounded-full text-sm font-bold transition-all text-rose-600 bg-white shadow-sm"><i class="fas fa-dharmachakra"></i> Spin Mode</button>
+                            <button id="mode-manual" class="mode-btn px-4 py-1.5 rounded-full text-sm font-bold transition-all text-slate-500 hover:text-slate-700"><i class="fas fa-hand-pointer"></i> Manual Mode</button>
+                        </div>
+
+                        <div class="flex flex-wrap gap-3">
+                            <div class="flex items-center gap-2 bg-white/70 border border-white px-3 py-1.5 rounded-xl shadow-sm backdrop-blur-md">
+                                <i class="fas fa-tags text-sky-400 text-sm"></i>
+                                <select id="filter-price" class="bg-transparent text-sm font-bold text-slate-600 outline-none cursor-pointer">
+                                    <option value="all">All Prices</option>
+                                    <option value="under_100">Budget (< 100 ฿)</option>
+                                    <option value="100_200">Medium (100-200 ฿)</option>
+                                    <option value="over_200">Premium (> 200 ฿)</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-2 bg-white/70 border border-white px-3 py-1.5 rounded-xl shadow-sm backdrop-blur-md">
+                                <i class="fas fa-list text-pink-400 text-sm"></i>
+                                <select id="filter-category" class="bg-transparent text-sm font-bold text-slate-600 outline-none cursor-pointer max-w-[150px]">
+                                    <option value="all">All Categories</option>
+                                    <!-- JS will populate this dynamically -->
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Maps Button Row -->
+                    <div class="flex justify-end mb-6 z-30">
+                        <button id="btn-open-map" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 font-bold px-4 py-2 rounded-xl shadow-sm transition-colors flex items-center gap-2 text-sm border border-emerald-200">
+                            <i class="fas fa-map-marked-alt text-lg"></i> Find Nearby
+                        </button>
+                    </div>
+
+                    <!-- SPIN MODE SECTION -->
+                    <div id="section-spin" class="w-full flex-1 flex flex-col items-center justify-center transition-all duration-500 relative pb-10">
+                        
+                        <!-- Result Display (Floating Top) -->
+                        <div id="spin-result" class="absolute -top-10 left-1/2 -translate-x-1/2 text-lg font-bold text-slate-800 opacity-0 transition-all duration-500 bg-white/95 border border-white backdrop-blur-md px-8 py-4 rounded-2xl shadow-xl z-40 whitespace-nowrap">
+                            🎉 Number <span id="spin-result-num" class="text-rose-500 text-2xl font-black mx-1"></span>: <span id="spin-result-name" class="text-sky-600 font-extrabold text-xl"></span>
+                        </div>
+
+                        <!-- Flex Container for Legend and Wheel -->
+                        <div class="flex flex-col md:flex-row items-center md:items-start justify-center gap-8 w-full mt-12 mb-10">
+                            <!-- Wheel Container -->
+                            <div class="relative w-80 h-80 shrink-0">
+                                <div id="roulette-wheel" class="w-full h-full rounded-full border-8 border-white shadow-[0_15px_35px_rgba(0,0,0,0.1)] overflow-hidden relative transition-transform duration-[4000ms] cubic-bezier bg-white">
+                                    <!-- JS will populate CSS wedges -->
+                                </div>
+                                
+                                <!-- Pointer Arrow (Top Center) -->
+                                <div class="absolute -top-4 left-1/2 -translate-x-1/2 text-6xl text-rose-500 filter drop-shadow-[0_4px_6px_rgba(244,63,94,0.4)] z-20" style="transform-origin: center bottom;">
+                                    <i class="fas fa-map-marker"></i>
+                                </div>
+                                
+                                <!-- Center Dot -->
+                                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-white rounded-full shadow-lg flex items-center justify-center z-10 border-4 border-slate-50">
+                                    <i class="fas fa-star text-yellow-400 text-xl drop-shadow-sm"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons Row (Stacked neatly) -->
+                        <div class="flex flex-col items-center gap-4 mt-auto w-full">
+                            <button id="btn-spin" class="bg-gradient-to-r from-rose-400 to-orange-400 hover:from-rose-500 hover:to-orange-500 text-white font-black text-2xl py-4 px-16 rounded-full shadow-[0_10px_25px_rgba(244,63,94,0.3)] hover:shadow-[0_15px_30px_rgba(244,63,94,0.5)] transition-all duration-300 transform hover:scale-105 tracking-wider border-2 border-white/50 w-full max-w-xs">
+                                SPIN! 🎯
+                            </button>
+                            
+                            <div class="flex gap-3 justify-center flex-wrap w-full">
+                                <button id="btn-view-options" class="bg-white/80 hover:bg-white text-slate-500 hover:text-slate-700 font-bold px-4 py-3 rounded-full shadow-sm hover:shadow-md transition-all border border-slate-100 flex items-center gap-2 text-sm flex-1 max-w-[160px] justify-center">
+                                    <i class="fas fa-list-ol"></i> View Options
+                                </button>
+                                <button id="btn-add-restaurant" class="bg-white/80 hover:bg-white text-sky-600 font-bold px-4 py-3 rounded-full shadow-sm hover:shadow-md transition-all border border-sky-100 flex items-center gap-2 text-sm flex-1 max-w-[160px] justify-center">
+                                    <i class="fas fa-plus-circle"></i> Add New
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MANUAL MODE SECTION -->
+                    <div id="section-manual" class="w-full flex-1 flex flex-col hidden transition-all duration-500 pb-16">
+                        <div class="flex items-center justify-between mb-6 mt-4">
+                            <div>
+                                <h3 class="text-2xl font-extrabold text-slate-800 mb-1"><i class="fas fa-hand-pointer text-sky-500 mr-2"></i> Manual Selection</h3>
+                                <p class="text-slate-500 font-medium text-sm">Choose your preferred restaurant from the list below.</p>
+                            </div>
+                            <button id="btn-add-restaurant-manual" class="bg-white/80 hover:bg-white text-sky-600 font-bold px-4 py-2 rounded-xl shadow-sm hover:shadow-md transition-all border border-sky-100 flex items-center gap-2 text-sm">
+                                <i class="fas fa-plus-circle"></i> Add New Option
+                            </button>
+                        </div>
+                        
+                        <div id="manual-grid" class="flex-1 overflow-y-auto custom-scrollbar grid grid-cols-1 sm:grid-cols-2 gap-4 auto-rows-max pr-2 max-h-[450px]">
+                            <!-- JS Inserts cards -->
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW D: Quiz Mode (New in V7) -->
+    <div id="view-quiz" class="min-h-screen flex flex-col p-4 md:p-8 hidden transition-opacity duration-700">
+        <div class="max-w-4xl w-full mx-auto flex-1 flex flex-col justify-center relative">
+            
+            <button id="btn-close-quiz" class="absolute top-0 right-0 md:-right-12 text-slate-500 hover:text-slate-800 w-12 h-12 rounded-full bg-white/50 border border-white shadow-sm flex items-center justify-center z-50 transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+
+            <div class="text-center mb-10">
+                <h2 class="text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight mb-4">🔮 Psychological Lunch Quiz</h2>
+                <p class="text-slate-500 font-medium max-w-lg mx-auto">Answer 5 quick questions to unlock your true inner cravings. Select your scenario below to begin!</p>
+            </div>
+
+            <!-- Initial Quiz Intro (Theme Selector) -->
+            <div id="quiz-intro-container" class="flex flex-col sm:flex-row gap-4 justify-center transition-all duration-500">
+                <button class="quiz-theme-btn flex-1 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 p-8 rounded-3xl hover:shadow-lg transition-all group max-w-sm w-full" data-theme="office">
+                    <div class="w-20 h-20 bg-white text-indigo-500 rounded-2xl flex items-center justify-center text-4xl mb-6 mx-auto shadow-sm group-hover:scale-110 transition-transform"><i class="fas fa-briefcase"></i></div>
+                    <h3 class="text-2xl font-black text-slate-700 mb-2">Office Mode</h3>
+                    <p class="text-sm text-slate-500 font-medium">Find the perfect meal to survive the workday.</p>
+                </button>
+                
+                <button class="quiz-theme-btn flex-1 bg-gradient-to-br from-rose-50 to-pink-50 border border-rose-100 p-8 rounded-3xl hover:shadow-lg transition-all group max-w-sm w-full" data-theme="couple">
+                    <div class="w-20 h-20 bg-white text-rose-500 rounded-2xl flex items-center justify-center text-4xl mb-6 mx-auto shadow-sm group-hover:scale-110 transition-transform"><i class="fas fa-heart"></i></div>
+                    <h3 class="text-2xl font-black text-slate-700 mb-2">Couple Mode</h3>
+                    <p class="text-sm text-slate-500 font-medium">Stop arguing about where to eat with your partner.</p>
+                </button>
+            </div>
+
+            <!-- Quiz Questions Container -->
+            <div id="quiz-questions-container" class="relative hidden w-full h-[400px] mt-8">
+                <!-- Progress Bar -->
+                <div class="w-full max-w-2xl mx-auto mb-8 bg-white/40 rounded-full h-3 overflow-hidden shadow-inner absolute -top-12 left-1/2 -translate-x-1/2">
+                    <div id="quiz-progress-bar" class="bg-gradient-to-r from-purple-400 to-pink-500 h-full rounded-full w-1/4 transition-all duration-500"></div>
+                </div>
+
+                <!-- Questions will be injected here via JS -->
+                <div id="quiz-slides-wrapper" class="relative w-full h-full max-w-3xl mx-auto overflow-visible"></div>
+            </div>
+
+            <!-- Quiz Result Container (Destiny Reveal) -->
+            <div id="quiz-result-container" class="hidden flex flex-col items-center justify-center text-center glass-card p-12 rounded-[3rem] border-2 border-amber-300 max-w-2xl mx-auto transform scale-95 transition-all duration-700 bg-gradient-to-b from-white/90 to-amber-50/90 shadow-[0_20px_50px_rgba(251,191,36,0.3)] relative overflow-hidden">
+                <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 z-0 mix-blend-overlay"></div>
+                <div id="quiz-result-icon" class="w-28 h-28 bg-gradient-to-br from-amber-200 to-yellow-400 text-white rounded-full flex items-center justify-center text-6xl mb-6 shadow-[0_10px_20px_rgba(251,191,36,0.4)] relative z-10 animate-bounce">
+                    <i class="fas fa-star"></i>
+                </div>
+                <h3 class="text-sm font-black tracking-widest text-amber-500 uppercase mb-2 relative z-10">โชคชะตาของคุณคือ...</h3>
+                <h2 id="quiz-result-title" class="text-4xl md:text-5xl font-extrabold text-slate-800 mb-4 relative z-10 drop-shadow-md">ร้านอาหาร</h2>
+                <p id="quiz-result-desc" class="text-slate-600 font-bold mb-8 text-lg md:text-xl relative z-10 bg-white/50 inline-block px-6 py-2 rounded-2xl border border-amber-100">"คำทำนายบางอย่าง"</p>
+                
+                <button id="btn-apply-quiz" class="relative z-10 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xl py-4 px-12 rounded-full shadow-[0_10px_25px_rgba(245,158,11,0.4)] hover:shadow-[0_15px_30px_rgba(245,158,11,0.5)] transition-all duration-300 transform hover:-translate-y-1">
+                    ยอมรับชะตากรรม 🙏
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW C: Dashboard (Hidden to save lines here, it's included below... wait I need to include it or it breaks) -->
+    <!-- I will include it exactly as before -->
+    <div id="view-dashboard" class="min-h-screen p-4 md:p-8 hidden transition-opacity duration-700">
+        <div class="max-w-7xl mx-auto">
+            <!-- Top Bar -->
+            <div class="glass-card px-6 py-4 rounded-3xl mb-8 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+                <div class="flex items-center justify-between w-full xl:w-auto gap-4">
+                    <div class="flex items-center gap-4">
+                        <button id="btn-back-main" class="bg-white/50 text-slate-500 hover:text-slate-800 hover:bg-white w-12 h-12 rounded-2xl transition-all flex items-center justify-center border border-white shadow-sm"><i class="fas fa-arrow-left text-xl"></i></button>
+                        <h2 class="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight">📊 Analytics Dashboard</h2>
+                    </div>
+                </div>
+                
+                <!-- Controls Container -->
+                <div class="flex items-center gap-3 w-full xl:w-auto flex-wrap justify-start xl:justify-end">
+                    <div id="active-filter-pill" class="hidden items-center gap-2 bg-sky-100 text-sky-600 px-3 py-1.5 rounded-full text-xs font-bold mr-2">
+                        <span>Filter: <span id="active-filter-text">None</span></span>
+                        <button id="btn-clear-filter" class="hover:text-rose-500"><i class="fas fa-times"></i></button>
+                    </div>
+                    
+                    <div class="flex bg-slate-100 p-1 rounded-full shadow-inner mr-2">
+                        <button id="btn-scope-personal" class="px-4 py-1.5 rounded-full text-sm font-bold text-slate-700 bg-white shadow-sm transition-all"><i class="fas fa-user mr-1"></i> My Stats</button>
+                        <button id="btn-scope-global" class="px-4 py-1.5 rounded-full text-sm font-bold text-slate-500 hover:text-slate-700 transition-all"><i class="fas fa-globe mr-1"></i> Global</button>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <select id="date-mode-select" class="py-2 px-4 rounded-2xl border border-white bg-white/70 text-slate-700 focus:outline-none focus:ring-4 focus:ring-sky-100 text-sm font-bold shadow-sm cursor-pointer pr-8 min-w-[110px]">
+                            <option value="all">All Time</option>
+                            <option value="today">Today</option>
+                            <option value="specific">Specific Date...</option>
+                        </select>
+                        <div class="relative hidden" id="date-picker-container">
+                            <input type="date" id="date-picker" class="pl-10 pr-3 py-2 rounded-2xl border border-white bg-white/70 text-slate-700 focus:outline-none focus:ring-4 focus:ring-sky-100 text-sm font-bold shadow-sm min-w-[140px]">
+                            <i class="fas fa-calendar-day absolute left-4 top-1/2 -translate-y-1/2 text-sky-500"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 ml-auto xl:ml-0 mt-2 sm:mt-0">
+                        <button id="btn-refresh" class="bg-white hover:bg-sky-50 text-sky-600 p-2.5 px-4 rounded-2xl shadow-sm border border-white transition-colors flex items-center gap-2 font-bold shadow-[0_4px_10px_rgba(14,165,233,0.1)]">
+                            <i class="fas fa-sync-alt"></i> <span class="hidden sm:inline">Refresh</span>
+                        </button>
+                        <div class="h-6 w-px bg-slate-200"></div>
+                        <button id="btn-simulate" class="bg-purple-50 text-purple-600 hover:bg-purple-100 p-2.5 rounded-xl border border-purple-100 transition-colors shadow-sm" title="Generate Mock Data">
+                            <i class="fas fa-flask"></i>
+                        </button>
+                        <button id="btn-clear-data" class="bg-rose-50 text-rose-600 hover:bg-rose-100 p-2.5 rounded-xl border border-rose-100 transition-colors shadow-sm" title="Clear All Data">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Layout Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8 auto-rows-min">
+                
+                <!-- Block 1: Latest Spins -->
+                <div class="md:col-span-12 lg:col-span-4 glass-card p-8 rounded-[2.5rem] flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 id="dash-latest-header" class="text-lg font-extrabold text-slate-800">🍽️ Latest Meals (All Time)</h3>
+                    </div>
+                    <div class="flex-1 flex flex-col justify-center gap-5">
+                        <div class="bg-white/60 rounded-2xl p-4 border border-white shadow-sm flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow filter-meal-card" data-meal="breakfast">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-amber-200 to-orange-200 text-orange-600 flex items-center justify-center text-xl shadow-inner"><i class="fas fa-sun"></i></div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs text-slate-400 font-bold mb-1 uppercase">Breakfast</p>
+                                <p class="text-slate-800 font-bold truncate text-lg" id="dash-latest-breakfast">---</p>
+                            </div>
+                        </div>
+                        <div class="bg-white/60 rounded-2xl p-4 border border-white shadow-sm flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow filter-meal-card" data-meal="lunch">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-sky-200 to-cyan-200 text-sky-600 flex items-center justify-center text-xl shadow-inner"><i class="fas fa-cloud-sun"></i></div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs text-slate-400 font-bold mb-1 uppercase">Lunch</p>
+                                <p class="text-slate-800 font-bold truncate text-lg" id="dash-latest-lunch">---</p>
+                            </div>
+                        </div>
+                        <div class="bg-white/60 rounded-2xl p-4 border border-white shadow-sm flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow filter-meal-card" data-meal="dinner">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-200 to-purple-200 text-indigo-600 flex items-center justify-center text-xl shadow-inner"><i class="fas fa-moon"></i></div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs text-slate-400 font-bold mb-1 uppercase">Dinner</p>
+                                <p class="text-slate-800 font-bold truncate text-lg" id="dash-latest-dinner">---</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Block 2: Top 5 Restaurants -->
+                <div class="md:col-span-12 lg:col-span-8 glass-card p-8 rounded-[2.5rem] flex flex-col min-h-[380px]">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-lg font-extrabold text-slate-800">🏆 Top 5 Places</h3>
+                        <div class="flex gap-2">
+                            <button id="btn-full-ranking" class="text-xs font-bold text-sky-500 bg-sky-50 px-3 py-1.5 rounded-lg hover:bg-sky-100 transition-colors border border-sky-100">View All</button>
+                            <div class="p-2 bg-sky-100 text-sky-500 rounded-xl"><i class="fas fa-chart-column"></i></div>
+                        </div>
+                    </div>
+                    <div class="flex-1 relative w-full h-full min-h-[250px]">
+                        <canvas id="topRestaurantsChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Block 3: Forecast AI -->
+                <div class="md:col-span-12 lg:col-span-8 bg-gradient-to-r from-sky-400 to-indigo-500 rounded-[2.5rem] p-10 text-white shadow-[0_20px_40px_rgba(56,189,248,0.3)] relative overflow-hidden group">
+                    <div class="absolute -right-10 -top-10 w-64 h-64 bg-white/20 rounded-full blur-3xl transition-transform group-hover:scale-110 duration-700"></div>
+                    <div class="absolute -left-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-2xl transition-transform group-hover:scale-110 duration-700"></div>
+                    
+                    <div class="flex items-center justify-between mb-4 relative z-10">
+                        <h3 class="text-sm font-bold tracking-widest text-sky-100 uppercase bg-white/20 px-3 py-1 rounded-lg backdrop-blur-sm"><i class="fas fa-robot mr-2"></i> AI Probability Engine</h3>
+                        <div class="text-xs font-bold text-sky-100 bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/20 shadow-sm flex items-center gap-2">
+                            <i class="fas fa-bullseye text-yellow-300"></i> ความแม่นยำ AI: <span id="ai-accuracy-score" class="text-white text-sm">--%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="relative z-10 mt-6">
+                        <p class="text-3xl md:text-4xl font-extrabold text-white mb-8 leading-tight drop-shadow-md" id="forecast-text">Analyzing patterns...</p>
+                        <div class="w-full bg-black/20 rounded-full h-3 mb-3 overflow-hidden shadow-inner backdrop-blur-md">
+                            <div id="forecast-bar" class="bg-gradient-to-r from-yellow-300 to-emerald-400 h-full rounded-full w-0 transition-all duration-1000 shadow-[0_0_10px_rgba(255,255,255,0.5)]"></div>
+                        </div>
+                        <p class="text-sm font-bold tracking-widest text-right text-sky-100 uppercase">Probability: <span id="forecast-percent" class="text-yellow-300 text-xl font-black ml-1">0</span>%</p>
+                    </div>
+                </div>
+
+                <!-- Block 4: Mood Distribution -->
+                <div class="md:col-span-12 lg:col-span-4 glass-card p-8 rounded-[2.5rem] flex flex-col min-h-[300px]">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-extrabold text-slate-800">💖 Mood Matrix</h3>
+                        <div class="p-2 bg-pink-100 text-pink-500 rounded-xl"><i class="fas fa-heartbeat"></i></div>
+                    </div>
+                    <div class="flex-1 relative w-full h-full flex justify-center items-center">
+                        <canvas id="moodChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Block 5: Behavioral Insights Panel -->
+                <div class="md:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 mt-4">
+                    
+                    <!-- Insight: Category Radar -->
+                    <div class="glass-card p-6 rounded-[2.5rem] flex flex-col min-h-[350px]">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-extrabold text-slate-800">🎯 Food Personality</h3>
+                            <div class="p-2 bg-emerald-100 text-emerald-500 rounded-xl"><i class="fas fa-spider"></i></div>
+                        </div>
+                        <div class="flex-1 relative w-full h-full">
+                            <canvas id="categoryRadarChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Insight: Price Polar Area -->
+                    <div class="glass-card p-6 rounded-[2.5rem] flex flex-col min-h-[350px]">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-extrabold text-slate-800">💸 Price Distribution</h3>
+                            <div class="p-2 bg-amber-100 text-amber-500 rounded-xl"><i class="fas fa-coins"></i></div>
+                        </div>
+                        <div class="flex-1 relative w-full h-full">
+                            <canvas id="pricePolarChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Insight: Spin vs Manual -->
+                    <div class="glass-card p-6 rounded-[2.5rem] flex flex-col min-h-[350px]">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-extrabold text-slate-800">🎲 Destiny vs Will</h3>
+                            <div class="p-2 bg-indigo-100 text-indigo-500 rounded-xl"><i class="fas fa-balance-scale"></i></div>
+                        </div>
+                        <div class="flex-1 relative w-full h-full">
+                            <canvas id="methodDoughnutChart"></canvas>
+                        </div>
+                        <div class="text-center mt-2" id="method-text"></div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS (Add, Edit Name, Confirms) -->
+    <!-- Add Restaurant Modal -->
+    <div id="modal-add" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="glass-card rounded-[2.5rem] p-10 max-w-md w-full mx-4 transform scale-95 transition-transform duration-300">
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="text-2xl font-extrabold text-slate-800">🍽️ Add Restaurant</h3>
+                <button id="btn-close-modal" class="w-10 h-10 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors flex justify-center items-center"><i class="fas fa-times text-lg"></i></button>
+            </div>
+            
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-slate-500 text-sm font-bold mb-2">Name</label>
+                    <input type="text" id="add-name" class="w-full px-5 py-3 bg-white/70 border border-white rounded-2xl focus:border-sky-400 focus:ring-4 focus:ring-sky-100 outline-none text-slate-700 font-bold transition-all shadow-inner" placeholder="e.g. Papa's Pizza">
+                </div>
+                
+                <div>
+                    <label class="block text-slate-500 text-sm font-bold mb-2">Price Range</label>
+                    <select id="add-price" class="w-full px-5 py-3 bg-white/70 border border-white rounded-2xl focus:border-sky-400 focus:ring-4 focus:ring-sky-100 outline-none text-slate-700 font-bold appearance-none shadow-inner">
+                        <option value="under_100">Budget (< 100 ฿)</option>
+                        <option value="100_200">Medium (100 - 200 ฿)</option>
+                        <option value="over_200">Premium (> 200 ฿)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-slate-500 text-sm font-bold mb-2">Meal Types (Multiple)</label>
+                    <div class="flex gap-2">
+                        <label class="flex-1 flex items-center justify-center gap-2 cursor-pointer bg-white/50 border border-white py-3 rounded-2xl hover:bg-white transition-colors shadow-sm">
+                            <input type="checkbox" class="add-meal hidden" value="breakfast"> 
+                            <span class="text-sm text-slate-500 font-bold check-label">Breakfast</span>
+                        </label>
+                        <label class="flex-1 flex items-center justify-center gap-2 cursor-pointer bg-sky-100 border border-sky-300 py-3 rounded-2xl hover:bg-sky-50 transition-colors shadow-sm">
+                            <input type="checkbox" class="add-meal hidden" value="lunch" checked> 
+                            <span class="text-sm text-sky-600 font-extrabold check-label">Lunch</span>
+                        </label>
+                        <label class="flex-1 flex items-center justify-center gap-2 cursor-pointer bg-white/50 border border-white py-3 rounded-2xl hover:bg-white transition-colors shadow-sm">
+                            <input type="checkbox" class="add-meal hidden" value="dinner"> 
+                            <span class="text-sm text-slate-500 font-bold check-label">Dinner</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-slate-500 text-sm font-bold mb-2">Category</label>
+                    <input type="text" id="add-category" class="w-full px-5 py-3 bg-white/70 border border-white rounded-2xl focus:border-sky-400 focus:ring-4 focus:ring-sky-100 outline-none text-slate-700 font-bold transition-all shadow-inner" placeholder="e.g. Japanese, Fast Food">
+                </div>
+
+                <button id="btn-submit-restaurant" class="w-full bg-gradient-to-r from-sky-400 to-indigo-500 hover:from-sky-500 hover:to-indigo-600 text-white font-extrabold py-4 rounded-2xl mt-6 transition-all tracking-wide shadow-[0_10px_20px_rgba(14,165,233,0.3)] hover:shadow-[0_15px_25px_rgba(14,165,233,0.4)] hover:-translate-y-1">
+                    Save to System
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Restaurant Modal -->
+    <div id="modal-edit" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="glass-card rounded-[2.5rem] p-10 max-w-md w-full mx-4 transform scale-95 transition-transform duration-300">
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="text-2xl font-extrabold text-slate-800">✏️ Edit Restaurant</h3>
+                <button id="btn-close-modal-edit" class="w-10 h-10 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors flex justify-center items-center"><i class="fas fa-times text-lg"></i></button>
+            </div>
+            
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-slate-500 text-sm font-bold mb-2">Name</label>
+                    <input type="text" id="edit-name" class="w-full px-5 py-3 bg-white/70 border border-white rounded-2xl focus:border-amber-400 focus:ring-4 focus:ring-amber-100 outline-none text-slate-700 font-bold transition-all shadow-inner">
+                </div>
+                
+                <div>
+                    <label class="block text-slate-500 text-sm font-bold mb-2">Price Range</label>
+                    <select id="edit-price" class="w-full px-5 py-3 bg-white/70 border border-white rounded-2xl focus:border-amber-400 focus:ring-4 focus:ring-amber-100 outline-none text-slate-700 font-bold appearance-none shadow-inner">
+                        <option value="under_100">Budget (< 100 ฿)</option>
+                        <option value="100_200">Medium (100 - 200 ฿)</option>
+                        <option value="over_200">Premium (> 200 ฿)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-slate-500 text-sm font-bold mb-2">Meal Types (Multiple)</label>
+                    <div class="flex gap-2">
+                        <label class="flex-1 flex items-center justify-center gap-2 cursor-pointer bg-white/50 border border-white py-3 rounded-2xl hover:bg-white transition-colors shadow-sm">
+                            <input type="checkbox" class="edit-meal hidden" value="breakfast"> 
+                            <span class="text-sm text-slate-500 font-bold check-label">Breakfast</span>
+                        </label>
+                        <label class="flex-1 flex items-center justify-center gap-2 cursor-pointer bg-amber-100 border border-amber-300 py-3 rounded-2xl hover:bg-amber-50 transition-colors shadow-sm">
+                            <input type="checkbox" class="edit-meal hidden" value="lunch"> 
+                            <span class="text-sm text-amber-600 font-extrabold check-label">Lunch</span>
+                        </label>
+                        <label class="flex-1 flex items-center justify-center gap-2 cursor-pointer bg-white/50 border border-white py-3 rounded-2xl hover:bg-white transition-colors shadow-sm">
+                            <input type="checkbox" class="edit-meal hidden" value="dinner"> 
+                            <span class="text-sm text-slate-500 font-bold check-label">Dinner</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-slate-500 text-sm font-bold mb-2">Category</label>
+                    <input type="text" id="edit-category" class="w-full px-5 py-3 bg-white/70 border border-white rounded-2xl focus:border-amber-400 focus:ring-4 focus:ring-amber-100 outline-none text-slate-700 font-bold transition-all shadow-inner">
+                </div>
+
+                <button id="btn-submit-edit-restaurant" class="w-full bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-extrabold py-4 rounded-2xl mt-6 transition-all tracking-wide shadow-[0_10px_20px_rgba(251,191,36,0.3)] hover:shadow-[0_15px_25px_rgba(251,191,36,0.4)] hover:-translate-y-1">
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Name Modal -->
+    <div id="modal-edit-name" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="glass-card rounded-[2.5rem] p-10 max-w-sm w-full mx-4 transform scale-95 transition-transform duration-300">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-extrabold text-slate-800"><i class="fas fa-user-astronaut text-indigo-500 mr-2"></i> Update Profile</h3>
+                <button id="btn-close-edit-name" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors flex justify-center items-center"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-slate-500 text-xs uppercase tracking-widest font-bold mb-2">Your Nickname</label>
+                    <input type="text" id="edit-name-input" class="w-full px-5 py-3 bg-white/70 border border-white rounded-2xl focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 outline-none text-slate-700 font-bold transition-all shadow-inner text-center text-lg">
+                </div>
+                <button id="btn-submit-edit-name" class="w-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-extrabold py-3 rounded-2xl mt-4 transition-all tracking-wide shadow-[0_10px_20px_rgba(99,102,241,0.3)] hover:shadow-[0_15px_25px_rgba(99,102,241,0.4)] hover:-translate-y-1">
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual Confirm Modal -->
+    <div id="modal-manual-confirm" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="glass-card rounded-[2.5rem] p-10 max-w-sm w-full mx-4 transform scale-95 transition-transform duration-300 text-center">
+            <div class="w-20 h-20 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-6 shadow-inner">
+                <i class="fas fa-utensils"></i>
+            </div>
+            <h3 class="text-2xl font-extrabold text-slate-800 mb-2">Confirm Choice</h3>
+            <p class="text-slate-500 font-medium mb-8">Are you sure you want to select <br><span id="manual-confirm-name" class="text-sky-600 font-black text-xl mt-2 block"></span></p>
+            
+            <div class="flex gap-3">
+                <button id="btn-cancel-manual" class="flex-1 bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 font-bold py-3 rounded-2xl transition-colors">
+                    Cancel
+                </button>
+                <button id="btn-submit-manual" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold py-3 rounded-2xl transition-all shadow-[0_8px_20px_rgba(16,185,129,0.3)] hover:shadow-[0_12px_25px_rgba(16,185,129,0.4)]">
+                    Confirm!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirm Modal -->
+    <div id="modal-delete-confirm" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="glass-card rounded-[2.5rem] p-10 max-w-sm w-full mx-4 transform scale-95 transition-transform duration-300 text-center relative overflow-hidden">
+            <div class="absolute inset-0 bg-rose-50/50 z-[-1]"></div>
+            <div class="w-20 h-20 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-6 shadow-inner border border-rose-200">
+                <i class="fas fa-trash-alt"></i>
+            </div>
+            <h3 class="text-2xl font-extrabold text-slate-800 mb-2">Delete Options</h3>
+            <p class="text-slate-500 font-medium mb-8">Are you sure you want to permanently delete <br><span id="delete-confirm-name" class="text-rose-600 font-black text-xl mt-2 block"></span></p>
+            
+            <div class="flex gap-3">
+                <button id="btn-cancel-delete" class="flex-1 bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 font-bold py-3 rounded-2xl transition-colors">
+                    Cancel
+                </button>
+                <button id="btn-submit-delete" class="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-extrabold py-3 rounded-2xl transition-all shadow-[0_8px_20px_rgba(244,63,94,0.3)] hover:shadow-[0_12px_25px_rgba(244,63,94,0.4)]">
+                    Yes, Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Options List Modal -->
+    <div id="modal-options-list" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="glass-card rounded-[2.5rem] p-8 max-w-sm w-full mx-4 transform scale-95 transition-transform duration-300">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-extrabold text-slate-800"><i class="fas fa-list-ol text-sky-500 mr-2"></i> Current Options</h3>
+                <button id="btn-close-options-list" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors flex justify-center items-center"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="max-h-[350px] overflow-y-auto custom-scrollbar pr-2 pb-4">
+                <ul id="options-list-modal-ul" class="space-y-3 text-sm font-medium text-slate-700">
+                    <!-- JS inserts legend items here -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Simulate Data Modal -->
+    <div id="modal-simulate-confirm" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="glass-card rounded-[2.5rem] p-10 max-w-sm w-full mx-4 transform scale-95 transition-transform duration-300 text-center">
+            <div class="w-20 h-20 bg-purple-100 text-purple-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-6 shadow-inner border border-purple-200">
+                <i class="fas fa-flask"></i>
+            </div>
+            <h3 class="text-2xl font-extrabold text-slate-800 mb-2">Simulate Data?</h3>
+            <p class="text-slate-500 font-medium mb-8">Generate mock history for charts?</p>
+            <div class="flex gap-3">
+                <button id="btn-cancel-simulate" class="flex-1 bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 font-bold py-3 rounded-2xl transition-colors">Cancel</button>
+                <button id="btn-submit-simulate" class="flex-1 bg-purple-500 hover:bg-purple-600 text-white font-extrabold py-3 rounded-2xl transition-all shadow-[0_8px_20px_rgba(168,85,247,0.3)] hover:shadow-[0_12px_25px_rgba(168,85,247,0.4)]">Generate</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clear Data Modal -->
+    <div id="modal-clear-confirm" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="glass-card rounded-[2.5rem] p-10 max-w-sm w-full mx-4 transform scale-95 transition-transform duration-300 text-center relative overflow-hidden">
+            <div class="absolute inset-0 bg-rose-50/50 z-[-1]"></div>
+            <div class="w-20 h-20 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-6 shadow-inner border border-rose-200">
+                <i class="fas fa-trash-alt"></i>
+            </div>
+            <h3 class="text-2xl font-extrabold text-slate-800 mb-2">Clear All Data?</h3>
+            <p class="text-slate-500 font-medium mb-8">This will wipe all history!</p>
+            <div class="flex gap-3">
+                <button id="btn-cancel-clear" class="flex-1 bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 font-bold py-3 rounded-2xl transition-colors">Cancel</button>
+                <button id="btn-submit-clear" class="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-extrabold py-3 rounded-2xl transition-all shadow-[0_8px_20px_rgba(244,63,94,0.3)] hover:shadow-[0_12px_25px_rgba(244,63,94,0.4)]">Yes, Clear</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full Ranking Modal -->
+    <div id="modal-full-ranking" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="glass-card rounded-[2.5rem] p-8 max-w-md w-full mx-4 transform scale-95 transition-transform duration-300">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-extrabold text-slate-800"><i class="fas fa-trophy text-amber-500 mr-2"></i> Full Ranking</h3>
+                <button id="btn-close-full-ranking" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors flex justify-center items-center"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="max-h-[400px] overflow-y-auto custom-scrollbar pr-2 pb-4">
+                <ul id="full-ranking-list" class="space-y-4 text-sm font-medium text-slate-700">
+                    <!-- JS inserts ranking items here -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+
+    <!-- Scripts -->
+    <script src="quiz-data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

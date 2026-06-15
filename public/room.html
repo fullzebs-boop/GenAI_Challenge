@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnyMeal - Collaborative AI Room</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { font-family: 'Outfit', sans-serif; }
+        .chat-bubble-ai { background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%); color: #1e293b; border-bottom-left-radius: 0; }
+        .chat-bubble-user { background: #3b82f6; color: white; border-bottom-right-radius: 0; }
+        .glass-panel { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.5); }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 to-pink-50 h-screen overflow-hidden flex flex-col items-center p-4 md:p-8 text-slate-800">
+
+    <div class="w-full max-w-3xl flex-1 flex flex-col glass-panel rounded-[2rem] shadow-xl overflow-hidden relative">
+        <!-- Header -->
+        <header class="bg-white/80 border-b border-white/50 px-6 py-4 flex justify-between items-center z-10">
+            <div class="flex items-center gap-3">
+                <button onclick="window.location.href='/index.html'" class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition">
+                    <i class="fas fa-arrow-left text-slate-600"></i>
+                </button>
+                <div>
+                    <h1 class="text-xl font-extrabold tracking-tight flex items-center gap-2">
+                        <i class="fas fa-users text-indigo-500"></i> Room: <span id="room-id-display" class="text-indigo-600">---</span>
+                    </h1>
+                    <p class="text-xs text-slate-500 font-bold uppercase tracking-widest"><i class="fas fa-circle text-green-400 text-[8px] animate-pulse"></i> Live Collaborative AI</p>
+                </div>
+            </div>
+            <button onclick="openInviteModal()" class="bg-indigo-100 text-indigo-600 hover:bg-indigo-200 px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2">
+                <i class="fas fa-link"></i> Invite
+            </button>
+        </header>
+        
+        <!-- User Info Bar -->
+        <div class="bg-indigo-50 border-b border-indigo-100 px-6 py-2 flex justify-between items-center text-sm z-10">
+            <span class="text-slate-500 font-medium">Playing as: <strong id="username-display" class="text-indigo-600">Guest</strong></span>
+            <button onclick="openNameModal()" class="text-xs text-indigo-500 hover:text-indigo-700 font-bold flex items-center gap-1">
+                <i class="fas fa-pen"></i> Edit Name
+            </button>
+        </div>
+
+        <!-- Chat Area -->
+        <div id="chat-box" class="flex-1 overflow-y-auto p-6 flex flex-col gap-4 scroll-smooth">
+            <!-- Messages will be injected here -->
+        </div>
+
+        <!-- Quick Replies / Examples -->
+        <div id="quick-prompts-container" class="px-4 pb-2 bg-white/80 overflow-x-auto whitespace-nowrap hide-scrollbar border-t border-white/50 pt-2 flex gap-2">
+            <button onclick="usePrompt('อยากกินหมูกระทะแถวนี้ มีงบคนละไม่เกิน 300 บาท')" class="text-xs bg-pink-100 text-pink-600 hover:bg-pink-200 px-3 py-1.5 rounded-full font-bold transition">🔥 หมูกระทะงบ 300</button>
+            <button onclick="usePrompt('เที่ยงนี้อยากกินอะไรง่ายๆ ด่วนๆ ขอเป็นห้องแอร์')" class="text-xs bg-sky-100 text-sky-600 hover:bg-sky-200 px-3 py-1.5 rounded-full font-bold transition">❄️ อาหารจานด่วนแอร์เย็นๆ</button>
+            <button onclick="usePrompt('อกหักมาร้องไห้หนักมาก อยากหาร้านเงียบๆ นั่งคนเดียว')" class="text-xs bg-slate-100 text-slate-600 hover:bg-slate-200 px-3 py-1.5 rounded-full font-bold transition">🌧️ ร้านลับคนอกหัก</button>
+            <button onclick="usePrompt('ช่วยลิสต์ร้านอาหารญี่ปุ่นรีวิว 4 ดาวขึ้นไปมาให้หน่อย')" class="text-xs bg-orange-100 text-orange-600 hover:bg-orange-200 px-3 py-1.5 rounded-full font-bold transition">🍣 ญี่ปุ่น 4 ดาว+</button>
+        </div>
+
+        <!-- Input Area -->
+        <div class="bg-white/80 border-t border-white/50 p-4 relative z-10">
+            <form id="chat-form" class="flex gap-2 relative">
+                <input type="text" id="chat-input" autocomplete="off" placeholder="Type to answer the AI..." class="flex-1 bg-slate-100 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-700 font-medium">
+                <button type="submit" class="bg-indigo-500 hover:bg-indigo-600 text-white w-14 h-14 rounded-2xl flex items-center justify-center shadow-md transition transform hover:scale-105">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
+        
+        <!-- Gamification Overlay (Hidden initially) -->
+        <div id="result-overlay" class="absolute inset-0 bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden opacity-0 transition-opacity duration-500">
+            <h2 class="text-3xl font-black text-indigo-600 mb-2" id="overlay-title">🎉 Results are Ready!</h2>
+            <p class="text-slate-500 mb-8 font-medium" id="overlay-subtitle">The AI has generated the list based on everyone's input.</p>
+            
+            <div id="spinner-container" class="hidden mb-8 relative">
+                <div class="w-64 h-64 border-8 border-indigo-200 rounded-full border-t-indigo-500 animate-spin"></div>
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <i class="fas fa-utensils text-4xl text-indigo-400 animate-pulse"></i>
+                </div>
+            </div>
+
+            <div id="result-content" class="w-full max-w-md bg-white p-6 rounded-3xl shadow-2xl border border-indigo-100">
+                <!-- Injected via JS -->
+            </div>
+            <button onclick="document.getElementById('result-overlay').classList.add('hidden')" class="mt-6 text-slate-400 hover:text-slate-600 font-bold">Back to Chat</button>
+        </div>
+    </div>
+    
+    <!-- Room Summary Panel (Bottom) -->
+    <div id="room-summary" class="w-full max-w-3xl mt-4 bg-white/80 backdrop-blur-md rounded-[2rem] p-6 shadow-lg border border-white hidden">
+        <h3 class="text-xl font-black text-indigo-600 mb-2"><i class="fas fa-trophy text-yellow-400"></i> Room Summary</h3>
+        <p class="text-slate-500 text-sm mb-4">The ultimate dining choice for this room!</p>
+        <div id="summary-content" class="bg-gradient-to-r from-indigo-50 to-pink-50 p-4 rounded-2xl border border-indigo-100">
+        </div>
+    </div>
+
+    <!-- Invite Modal -->
+    <div id="invite-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center hidden opacity-0 transition-opacity">
+        <div class="bg-white p-8 rounded-[2rem] shadow-2xl w-[90%] max-w-md transform scale-95 transition-transform duration-300" id="invite-modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-black text-slate-800"><i class="fas fa-share-alt text-indigo-500 mr-2"></i> Invite Friends</h3>
+                <button onclick="closeInviteModal()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <p class="text-slate-500 mb-4 text-sm font-medium">Share this link with your friends so they can join the room instantly.</p>
+            <div class="flex bg-slate-100 p-2 rounded-xl mb-6">
+                <input type="text" id="share-link-input" readonly class="bg-transparent border-none flex-1 outline-none text-slate-600 font-medium px-2 text-sm" value="">
+                <button onclick="copyToClipboard()" class="bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-indigo-600 transition">Copy</button>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="shareToLine()" class="flex-1 bg-[#00B900] text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition">
+                    <i class="fab fa-line text-lg"></i> LINE
+                </button>
+                <button onclick="shareToFB()" class="flex-1 bg-[#1877F2] text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition">
+                    <i class="fab fa-facebook-f"></i> Facebook
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Name Edit Modal -->
+    <div id="name-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center hidden opacity-0 transition-opacity">
+        <div class="bg-white p-8 rounded-[2rem] shadow-2xl w-[90%] max-w-sm transform scale-95 transition-transform duration-300" id="name-modal-content">
+            <h3 class="text-2xl font-black text-slate-800 mb-2"><i class="fas fa-user-edit text-indigo-500 mr-2"></i> Your Name</h3>
+            <p class="text-slate-500 mb-6 text-sm font-medium">Enter a cool name so your friends know it's you!</p>
+            <input type="text" id="name-input-modal" class="w-full bg-slate-100 rounded-xl px-4 py-3 mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-400 font-bold text-slate-700" placeholder="e.g. John Doe">
+            <div class="flex gap-3">
+                <button onclick="closeNameModal()" class="flex-1 bg-slate-200 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-300 transition">Cancel</button>
+                <button onclick="saveNameModal()" class="flex-1 bg-indigo-500 text-white py-3 rounded-xl font-bold hover:bg-indigo-600 transition">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        
+        // 1. Setup Room ID and Username
+        const urlParams = new URLSearchParams(window.location.search);
+        let roomId = urlParams.get('id');
+        if (!roomId) {
+            roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+            window.history.replaceState(null, '', `?id=${roomId}`);
+        }
+        document.getElementById('room-id-display').textContent = roomId;
+        
+        let username = localStorage.getItem('username');
+        if (!username) {
+            username = 'Guest_' + Math.floor(Math.random()*1000);
+            localStorage.setItem('username', username);
+            // Prompt for name on first visit
+            setTimeout(() => openNameModal(), 500);
+        }
+        document.getElementById('username-display').textContent = username;
+        
+        // Modal Logic
+        function openNameModal() {
+            document.getElementById('name-input-modal').value = username;
+            const modal = document.getElementById('name-modal');
+            const content = document.getElementById('name-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); }, 10);
+        }
+        
+        function closeNameModal() {
+            const modal = document.getElementById('name-modal');
+            const content = document.getElementById('name-modal-content');
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+        
+        function saveNameModal() {
+            const newName = document.getElementById('name-input-modal').value.trim();
+            if (newName !== '') {
+                username = newName;
+                localStorage.setItem('username', username);
+                document.getElementById('username-display').textContent = username;
+            }
+            closeNameModal();
+        }
+        
+        function openInviteModal() {
+            document.getElementById('share-link-input').value = window.location.href;
+            const modal = document.getElementById('invite-modal');
+            const content = document.getElementById('invite-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); }, 10);
+        }
+        
+        function closeInviteModal() {
+            const modal = document.getElementById('invite-modal');
+            const content = document.getElementById('invite-modal-content');
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+        
+        function copyToClipboard() {
+            const copyText = document.getElementById("share-link-input");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); 
+            navigator.clipboard.writeText(copyText.value);
+            alert("Copied to clipboard!");
+        }
+        
+        function shareToLine() {
+            const url = encodeURIComponent(window.location.href);
+            window.open(`https://line.me/R/msg/text/?ชวนมากินข้าวในห้อง AnyMeal AI หน่อย: ${url}`, '_blank');
+        }
+        
+        function shareToFB() {
+            const url = encodeURIComponent(window.location.href);
+            window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
+        }
+        
+        function usePrompt(text) {
+            document.getElementById('chat-input').value = text;
+            document.getElementById('chat-form').dispatchEvent(new Event('submit'));
+        }
+
+        // 2. Join Room
+        socket.emit('join-room', roomId);
+
+        // 3. UI Elements
+        const chatBox = document.getElementById('chat-box');
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+        
+        function appendMessage(msg) {
+            const isAI = msg.sender === 'AI';
+            const isMe = msg.sender === username;
+            
+            const wrapper = document.createElement('div');
+            wrapper.className = `flex flex-col w-full max-w-[80%] ${isAI ? 'self-start items-start' : (isMe ? 'self-end items-end' : 'self-end items-end')}`;
+            
+            if (!isAI) {
+                const nameLabel = document.createElement('span');
+                nameLabel.className = "text-[10px] text-slate-400 font-bold mb-1 px-2";
+                nameLabel.textContent = msg.sender;
+                wrapper.appendChild(nameLabel);
+            }
+            
+            const bubble = document.createElement('div');
+            bubble.className = `px-5 py-3 rounded-2xl shadow-sm ${isAI ? 'chat-bubble-ai text-lg font-medium' : 'chat-bubble-user font-medium'}`;
+            // Simple markdown bold parsing
+            bubble.innerHTML = msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            wrapper.appendChild(bubble);
+            chatBox.appendChild(wrapper);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            
+            // Check for commands
+            if (msg.command) {
+                handleCommand(msg.command);
+            }
+            
+            // Handle dynamic suggested prompts
+            if (msg.suggestedPrompts && msg.suggestedPrompts.length > 0) {
+                const container = document.getElementById('quick-prompts-container');
+                if (container) {
+                    container.innerHTML = '';
+                    const colors = ['bg-pink-100 text-pink-600', 'bg-sky-100 text-sky-600', 'bg-slate-100 text-slate-600', 'bg-orange-100 text-orange-600', 'bg-indigo-100 text-indigo-600'];
+                    msg.suggestedPrompts.forEach((prompt, index) => {
+                        const color = colors[index % colors.length];
+                        container.innerHTML += `<button onclick="usePrompt('${prompt.replace(/'/g, "\\'")}')" class="text-xs ${color} hover:opacity-80 px-3 py-1.5 rounded-full font-bold transition">💡 ${prompt}</button>`;
+                    });
+                }
+            }
+        }
+        
+        let aiGeneratedList = [];
+
+        function handleCommand(cmd) {
+            const overlay = document.getElementById('result-overlay');
+            const content = document.getElementById('result-content');
+            const spinnerContainer = document.getElementById('spinner-container');
+            
+            document.getElementById('overlay-title').textContent = "🎉 Results are Ready!";
+            document.getElementById('overlay-subtitle').textContent = "The AI has generated the list based on everyone's input.";
+            spinnerContainer.classList.add('hidden');
+            content.classList.remove('hidden');
+            
+            if (cmd.type === 'RESULT_LIST') {
+                aiGeneratedList = cmd.data;
+                let html = `<h3 class="text-xl font-black text-slate-800 mb-2 text-center">📋 Vote for your Favorite!</h3>
+                <div class="text-center mb-4"><span id="vote-status" class="text-xs font-bold text-indigo-500 bg-indigo-50 py-1 px-3 rounded-full inline-block">กำลังโหลดจำนวนผู้เล่น...</span></div>
+                <p class="text-sm text-center text-slate-500 mb-4">Click on a restaurant to cast your vote.</p><ul class="space-y-3 mb-6" id="voting-list">`;
+                cmd.data.forEach(rest => {
+                    html += `<li class="relative overflow-hidden bg-white p-3 rounded-xl border-2 border-indigo-50 cursor-pointer hover:border-indigo-300 transition shadow-sm" onclick="castVote(${rest.id})">
+                        <div class="absolute top-0 left-0 bottom-0 bg-indigo-100/60 transition-all duration-500 ease-out" id="progress-${rest.id}" style="width: 0%"></div>
+                        <div class="relative z-10 flex justify-between items-center">
+                            <span class="font-bold text-slate-700">${rest.name}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold px-2 py-1 bg-white text-indigo-600 rounded-lg shadow-sm border border-indigo-50">${rest.food_category}</span>
+                                <span class="text-xs font-black text-indigo-400 bg-white px-2 py-1 rounded-full shadow-sm min-w-[24px] text-center" id="vote-count-${rest.id}">0</span>
+                            </div>
+                        </div>
+                    </li>`;
+                });
+                html += `</ul>
+                <div class="flex gap-2">
+                    <button id="finish-vote-btn" onclick="finishVoting()" class="flex-1 bg-gradient-to-r from-emerald-400 to-teal-500 text-white py-4 rounded-xl font-black text-sm hover:scale-[1.02] transition shadow-lg flex justify-center items-center gap-2 opacity-50 cursor-not-allowed">
+                        <i class="fas fa-check-circle"></i> สรุปผลโหวต
+                    </button>
+                    <button onclick="spinWheel()" class="flex-1 bg-gradient-to-r from-rose-400 to-pink-500 text-white py-4 rounded-xl font-black text-sm hover:scale-[1.02] transition shadow-lg flex justify-center items-center gap-2">
+                        <i class="fas fa-dharmachakra"></i> ให้วงล้อตัดสิน!
+                    </button>
+                </div>`;
+                content.innerHTML = html;
+                overlay.classList.remove('hidden');
+                setTimeout(() => overlay.classList.remove('opacity-0'), 100);
+            } else if (cmd.type === 'RESULT_RANDOM') {
+                showFinalWinner(cmd);
+            }
+        }
+        
+        function castVote(id) {
+            socket.emit('vote', { roomId, restaurantId: id, username: localStorage.getItem('username') || 'Guest' });
+        }
+        
+        function finishVoting() {
+            const finishBtn = document.getElementById('finish-vote-btn');
+            if (finishBtn && finishBtn.classList.contains('opacity-50')) {
+                alert("ต้องมีคนโหวตอย่างน้อย 1 คนถึงจะสรุปผลได้ครับ!");
+                return;
+            }
+            const statusDiv = document.getElementById('vote-status');
+            if (statusDiv && !statusDiv.textContent.includes('โหวตครบ')) {
+                if (!confirm("ยังมีคนในห้องโหวตไม่ครบเลย แน่ใจนะว่าจะปิดโหวตแล้ว?")) {
+                    return;
+                }
+            }
+            socket.emit('finish-voting', { roomId });
+            const overlay = document.getElementById('result-overlay');
+            overlay.classList.add('opacity-0');
+            setTimeout(() => overlay.classList.add('hidden'), 500);
+        }
+        
+        function spinWheel() {
+            if (aiGeneratedList.length === 0) return;
+            const randomRest = aiGeneratedList[Math.floor(Math.random() * aiGeneratedList.length)];
+            castVote(randomRest.id);
+            // Optionally notify the user
+            const btn = document.querySelector('button[onclick="spinWheel()"]');
+            if (btn) {
+                const oldHtml = btn.innerHTML;
+                btn.innerHTML = `<i class="fas fa-check"></i> สุ่มให้แล้ว!`;
+                setTimeout(() => btn.innerHTML = oldHtml, 2000);
+            }
+        }
+        
+        socket.on('update-votes', (data) => {
+            const votes = data.votes || data;
+            const totalParticipants = data.totalParticipants || 1;
+            const totalVoted = data.totalVoted || 0;
+            
+            const totalVotes = Object.values(votes).reduce((a, b) => a + b, 0);
+            for (const [id, count] of Object.entries(votes)) {
+                const countSpan = document.getElementById(`vote-count-${id}`);
+                const progressBar = document.getElementById(`progress-${id}`);
+                if (countSpan) countSpan.textContent = count;
+                if (progressBar) {
+                    const percentage = totalVotes === 0 ? 0 : (count / totalVotes) * 100;
+                    progressBar.style.width = `${percentage}%`;
+                }
+            }
+            
+            const statusDiv = document.getElementById('vote-status');
+            if (statusDiv) {
+                if (totalVoted >= totalParticipants) {
+                    statusDiv.className = "text-xs font-bold text-emerald-600 bg-emerald-100 py-1 px-3 rounded-full inline-block";
+                    statusDiv.innerHTML = `<i class="fas fa-check-circle"></i> โหวตครบทุกคนแล้ว! (${totalVoted}/${totalParticipants})`;
+                } else {
+                    statusDiv.className = "text-xs font-bold text-indigo-500 bg-indigo-50 py-1 px-3 rounded-full inline-block";
+                    statusDiv.textContent = `รอเพื่อนโหวต... (${totalVoted}/${totalParticipants} คน)`;
+                }
+            }
+            
+            const finishBtn = document.getElementById('finish-vote-btn');
+            if (finishBtn) {
+                if (totalVoted > 0) {
+                    finishBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                } else {
+                    finishBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            }
+        });
+        
+        function showFinalWinner(cmd) {
+            const data = cmd.data;
+            const allRestaurants = cmd.allRestaurants || [];
+            const finalVotes = cmd.finalVotes || {};
+            const userNames = cmd.userNames || {};
+            const userVotes = cmd.userVotes || {};
+            
+            // Build map of restaurantId -> array of usernames
+            const votersByRest = {};
+            for (const [socketId, restId] of Object.entries(userVotes)) {
+                if (!votersByRest[restId]) votersByRest[restId] = [];
+                votersByRest[restId].push(userNames[socketId] || 'Guest');
+            }
+            
+            const overlay = document.getElementById('result-overlay');
+            const content = document.getElementById('result-content');
+            const spinnerContainer = document.getElementById('spinner-container');
+            
+            document.getElementById('overlay-title').textContent = "👑 We have a winner!";
+            document.getElementById('overlay-subtitle').textContent = "Enjoy your meal!";
+            
+            spinnerContainer.classList.add('hidden');
+            content.classList.remove('hidden');
+            
+            const url = `https://www.google.com/maps/search/${encodeURIComponent(data.name)}+${encodeURIComponent(data.food_category)}`;
+            
+            const resultHtml = `
+                <div class="text-center">
+                    <div class="w-24 h-24 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                        <i class="fas fa-crown text-4xl text-rose-500"></i>
+                    </div>
+                    <h3 class="text-2xl font-black mb-2 text-slate-800">${data.name}</h3>
+                    <p class="text-slate-500 font-bold mb-6">${data.food_category} • ${data.price_range}</p>
+                    <a href="${url}" target="_blank" class="block w-full bg-[#4285F4] text-white py-4 rounded-xl font-bold hover:bg-[#3367D6] transition shadow-md flex justify-center items-center gap-2">
+                        <i class="fas fa-map-marker-alt"></i> Open in Google Maps
+                    </a>
+                </div>`;
+            
+            content.innerHTML = resultHtml;
+            overlay.classList.remove('hidden');
+            setTimeout(() => overlay.classList.remove('opacity-0'), 100);
+            
+            // Show Summary Panel at bottom
+            const summaryPanel = document.getElementById('room-summary');
+            const summaryContent = document.getElementById('summary-content');
+            
+            let summaryHtml = resultHtml;
+            
+            if (allRestaurants.length > 0) {
+                summaryHtml += `<div class="mt-6 border-t border-indigo-100 pt-4"><h4 class="font-bold text-slate-700 mb-3"><i class="fas fa-chart-bar text-indigo-400"></i> ผลคะแนนทั้งหมด</h4><ul class="space-y-3">`;
+                // sort by votes
+                const sorted = [...allRestaurants].sort((a, b) => (finalVotes[b.id] || 0) - (finalVotes[a.id] || 0));
+                sorted.forEach(rest => {
+                    const count = finalVotes[rest.id] || 0;
+                    const isWinner = rest.id === data.id;
+                    const voters = votersByRest[rest.id] || [];
+                    const votersText = voters.length > 0 ? `<div class="text-[10px] text-slate-400 mt-1"><i class="fas fa-user-circle"></i> โหวตโดย: ${voters.join(', ')}</div>` : '';
+                    
+                    summaryHtml += `<li class="flex justify-between items-center bg-white p-3 rounded-lg border ${isWinner ? 'border-rose-300 bg-rose-50' : 'border-slate-100'} shadow-sm">
+                        <div>
+                            <div class="text-sm font-bold ${isWinner ? 'text-rose-600' : 'text-slate-600'}">${rest.name}</div>
+                            ${votersText}
+                        </div>
+                        <span class="text-xs font-black bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded-md">${count} โหวต</span>
+                    </li>`;
+                });
+                summaryHtml += `</ul></div>`;
+            }
+            
+            summaryHtml += `<button onclick="window.location.href='/index.html'" class="mt-6 w-full bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-xl font-bold transition shadow-sm flex justify-center items-center gap-2"><i class="fas fa-redo"></i> หาร้านใหม่ (Start Over)</button>`;
+            
+            summaryContent.innerHTML = summaryHtml;
+            summaryPanel.classList.remove('hidden');
+        }
+
+        // Socket Events
+        socket.on('chat-history', (messages) => {
+            chatBox.innerHTML = '';
+            messages.forEach(appendMessage);
+        });
+
+        socket.on('chat-message', (msg) => {
+            appendMessage(msg);
+        });
+
+        // Form Submit
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = chatInput.value.trim();
+            if (!text) return;
+            
+            socket.emit('send-message', { roomId, sender: username, text });
+            chatInput.value = '';
+        });
+    </script>
+</body>
+</html>

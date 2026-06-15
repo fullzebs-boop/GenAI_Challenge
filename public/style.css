@@ -1,0 +1,117 @@
+/* Base styles and variables */
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.8);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+/* Glassmorphism Utilities */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.6);
+}
+
+/* Animations */
+@keyframes spinWheel {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(3600deg); }
+}
+
+@keyframes pulseBlob {
+  0%, 100% { transform: scale(1) translate(0, 0); }
+  33% { transform: scale(1.1) translate(20px, -20px); }
+  66% { transform: scale(0.9) translate(-20px, 20px); }
+}
+
+.animate-blob {
+  animation: pulseBlob 10s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cubic-bezier {
+  transition-timing-function: cubic-bezier(0.2, 0.8, 0.1, 1);
+}
+
+/* Range Slider Custom Styling */
+input[type=range] {
+  -webkit-appearance: none;
+}
+input[type=range]:focus {
+  outline: none;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 12px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 99px;
+  border: 1px solid rgba(255,255,255,1);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+}
+input[type=range]::-webkit-slider-thumb {
+  border: 3px solid white;
+  height: 24px;
+  width: 24px;
+  border-radius: 50%;
+  background: #38bdf8; /* sky-400 */
+  cursor: pointer;
+  -webkit-appearance: none;
+  margin-top: -7px;
+  box-shadow: 0 2px 6px rgba(56, 189, 248, 0.4);
+}
+input[type=range]:focus::-webkit-slider-thumb {
+  background: #0ea5e9; /* sky-500 */
+}
+
+/* Active State Styles for Buttons */
+.meal-btn.active {
+  background-color: #f0f9ff; /* sky-50 */
+  border-color: #7dd3fc; /* sky-300 */
+  color: #0284c7; /* sky-600 */
+  box-shadow: 0 4px 12px rgba(125, 211, 252, 0.3);
+}
+.mood-btn.active {
+  background-color: #fdf2f8; /* pink-50 */
+  border-color: #f9a8d4; /* pink-300 */
+  color: #db2777; /* pink-600 */
+  box-shadow: 0 4px 12px rgba(249, 168, 212, 0.3);
+}
+.mode-btn.active {
+  background-color: white;
+  color: #e11d48; /* rose-600 */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+/* Modal Checkbox logic */
+.add-meal:checked + span {
+  color: #0284c7; /* sky-600 */
+  font-weight: 800;
+}
+
+/* Restaurant Card Hover Effect */
+.rest-card {
+  transition: all 0.2s ease;
+}
+.rest-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+  border-color: #bae6fd;
+}
