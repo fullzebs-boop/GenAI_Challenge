@@ -3208,6 +3208,39 @@
       "selected_restaurant_id": 8,
       "selection_method": "spin",
       "timestamp": "2026-06-09T17:35:34.209Z"
+    },
+    {
+      "id": 1781541418285,
+      "username": "BAS",
+      "date": "2026-06-15",
+      "meal_type": "lunch",
+      "mood": "Relaxed",
+      "energy_level": "50",
+      "selected_restaurant_id": 6,
+      "selection_method": "manual",
+      "timestamp": "2026-06-15T16:36:58.285Z"
+    },
+    {
+      "id": 1781541424821,
+      "username": "BAS",
+      "date": "2026-06-15",
+      "meal_type": "dinner",
+      "mood": "Drained",
+      "energy_level": "50",
+      "selected_restaurant_id": 4,
+      "selection_method": "manual",
+      "timestamp": "2026-06-15T16:37:04.821Z"
+    },
+    {
+      "id": 1781541431876,
+      "username": "BAS",
+      "date": "2026-06-15",
+      "meal_type": "breakfast",
+      "mood": "Drained",
+      "energy_level": "50",
+      "selected_restaurant_id": 9,
+      "selection_method": "manual",
+      "timestamp": "2026-06-15T16:37:11.876Z"
     }
   ],
   "simulation_config": {

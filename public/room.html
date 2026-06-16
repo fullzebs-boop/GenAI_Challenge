@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AnyMeal - Collaborative AI Room</title>
+    <title>Meal Roulette - Collaborative AI Room</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -19,8 +19,8 @@
 
     <div class="w-full max-w-3xl flex-1 flex flex-col glass-panel rounded-[2rem] shadow-xl overflow-hidden relative">
         <!-- Header -->
-        <header class="bg-white/80 border-b border-white/50 px-6 py-4 flex justify-between items-center z-10">
-            <div class="flex items-center gap-3">
+        <header class="bg-white/80 border-b border-white/50 px-4 md:px-6 py-4 flex flex-wrap justify-between items-center z-30 gap-y-3">
+            <div class="flex items-center gap-3 w-full sm:w-auto">
                 <button onclick="window.location.href='/index.html'" class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition">
                     <i class="fas fa-arrow-left text-slate-600"></i>
                 </button>
@@ -31,9 +31,13 @@
                     <p class="text-xs text-slate-500 font-bold uppercase tracking-widest"><i class="fas fa-circle text-green-400 text-[8px] animate-pulse"></i> Live Collaborative AI</p>
                 </div>
             </div>
-            <button onclick="openInviteModal()" class="bg-indigo-100 text-indigo-600 hover:bg-indigo-200 px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2">
-                <i class="fas fa-link"></i> Invite
-            </button>
+            <div class="flex items-center gap-2">
+
+
+                <button onclick="openInviteModal()" class="bg-indigo-100 text-indigo-600 hover:bg-indigo-200 px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 shadow-sm">
+                    <i class="fas fa-link"></i> Invite
+                </button>
+            </div>
         </header>
         
         <!-- User Info Bar -->
@@ -44,24 +48,36 @@
             </button>
         </div>
 
+        <!-- Top Banner (Native Chat Mode) -->
+        <div class="bg-gradient-to-r from-pink-100 to-indigo-100 border-b border-indigo-200 px-4 py-3 text-center z-10">
+            <p class="text-sm font-bold text-indigo-700">
+                💬 คุยกันตามสบาย | พิมพ์ <span class="bg-indigo-200 px-2 py-0.5 rounded-md">@bot</span> หรือกดปุ่มด้านล่างเพื่ออัญเชิญ AI ช่วยหาอาหาร
+            </p>
+        </div>
+
         <!-- Chat Area -->
         <div id="chat-box" class="flex-1 overflow-y-auto p-6 flex flex-col gap-4 scroll-smooth">
             <!-- Messages will be injected here -->
         </div>
 
-        <!-- Quick Replies / Examples -->
-        <div id="quick-prompts-container" class="px-4 pb-2 bg-white/80 overflow-x-auto whitespace-nowrap hide-scrollbar border-t border-white/50 pt-2 flex gap-2">
-            <button onclick="usePrompt('อยากกินหมูกระทะแถวนี้ มีงบคนละไม่เกิน 300 บาท')" class="text-xs bg-pink-100 text-pink-600 hover:bg-pink-200 px-3 py-1.5 rounded-full font-bold transition">🔥 หมูกระทะงบ 300</button>
-            <button onclick="usePrompt('เที่ยงนี้อยากกินอะไรง่ายๆ ด่วนๆ ขอเป็นห้องแอร์')" class="text-xs bg-sky-100 text-sky-600 hover:bg-sky-200 px-3 py-1.5 rounded-full font-bold transition">❄️ อาหารจานด่วนแอร์เย็นๆ</button>
-            <button onclick="usePrompt('อกหักมาร้องไห้หนักมาก อยากหาร้านเงียบๆ นั่งคนเดียว')" class="text-xs bg-slate-100 text-slate-600 hover:bg-slate-200 px-3 py-1.5 rounded-full font-bold transition">🌧️ ร้านลับคนอกหัก</button>
-            <button onclick="usePrompt('ช่วยลิสต์ร้านอาหารญี่ปุ่นรีวิว 4 ดาวขึ้นไปมาให้หน่อย')" class="text-xs bg-orange-100 text-orange-600 hover:bg-orange-200 px-3 py-1.5 rounded-full font-bold transition">🍣 ญี่ปุ่น 4 ดาว+</button>
+        <!-- Dynamic Suggestion Chips (Hidden normally, shown when bot needs info) -->
+        <div id="suggestion-chips-container" class="px-4 pb-2 bg-white/80 overflow-x-auto whitespace-nowrap hide-scrollbar border-t border-white/50 pt-3 hidden gap-2 transition-all duration-300">
+            <!-- Chips injected via JS -->
         </div>
 
-        <!-- Input Area -->
-        <div class="bg-white/80 border-t border-white/50 p-4 relative z-10">
+        <!-- Input Area & AI Invoke Button -->
+        <div class="bg-white/90 border-t border-indigo-100 p-4 relative z-10 flex flex-col gap-3">
+            <div class="flex gap-2">
+                <button id="invoke-ai-btn" onclick="invokeAI()" class="flex-1 bg-gradient-to-r from-indigo-500 to-fuchsia-500 hover:from-indigo-600 hover:to-fuchsia-600 text-white font-black py-3 rounded-2xl shadow-[0_0_15px_rgba(236,72,153,0.5)] transition transform hover:scale-[1.02] flex items-center justify-center gap-2 text-sm sm:text-lg">
+                    <i class="fas fa-crystal-ball animate-pulse"></i> 🔮 อัญเชิญ AI
+                </button>
+                <button onclick="openManualInput()" class="bg-gradient-to-r from-teal-400 to-emerald-500 hover:from-teal-500 hover:to-emerald-600 text-white font-black py-3 px-4 rounded-2xl shadow-md transition transform hover:scale-[1.02] flex items-center justify-center gap-2 text-sm sm:text-lg">
+                    <i class="fas fa-edit"></i> ✏️ ป้อนเอง
+                </button>
+            </div>
             <form id="chat-form" class="flex gap-2 relative">
-                <input type="text" id="chat-input" autocomplete="off" placeholder="Type to answer the AI..." class="flex-1 bg-slate-100 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-700 font-medium">
-                <button type="submit" class="bg-indigo-500 hover:bg-indigo-600 text-white w-14 h-14 rounded-2xl flex items-center justify-center shadow-md transition transform hover:scale-105">
+                <input type="text" id="chat-input" autocomplete="off" placeholder="พิมพ์คุยกับเพื่อนตามสบาย..." class="flex-1 bg-slate-100 rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-700 font-medium disabled:opacity-50 disabled:bg-slate-200 transition-all">
+                <button type="submit" id="chat-submit-btn" class="bg-indigo-500 hover:bg-indigo-600 text-white w-14 h-14 rounded-2xl flex items-center justify-center shadow-md transition transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100">
                     <i class="fas fa-paper-plane"></i>
                 </button>
             </form>
@@ -86,11 +102,18 @@
         </div>
     </div>
     
-    <!-- Room Summary Panel (Bottom) -->
-    <div id="room-summary" class="w-full max-w-3xl mt-4 bg-white/80 backdrop-blur-md rounded-[2rem] p-6 shadow-lg border border-white hidden">
-        <h3 class="text-xl font-black text-indigo-600 mb-2"><i class="fas fa-trophy text-yellow-400"></i> Room Summary</h3>
-        <p class="text-slate-500 text-sm mb-4">The ultimate dining choice for this room!</p>
-        <div id="summary-content" class="bg-gradient-to-r from-indigo-50 to-pink-50 p-4 rounded-2xl border border-indigo-100">
+    <!-- Room Summary Modal -->
+    <div id="room-summary" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white/95 backdrop-blur-xl p-6 md:p-8 rounded-[2rem] shadow-2xl w-[95%] max-w-lg border border-white/50 max-h-[90vh] overflow-y-auto transform scale-95 transition-transform duration-300" id="room-summary-modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-2xl font-black text-indigo-600"><i class="fas fa-trophy text-yellow-400"></i> Room Summary</h3>
+                    <p class="text-slate-500 text-sm font-medium">The ultimate dining choice for this room!</p>
+                </div>
+                <button onclick="closeRoomSummary()" class="text-slate-400 hover:text-slate-600 w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center transition"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div id="summary-content" class="bg-gradient-to-r from-indigo-50 to-pink-50 p-4 md:p-5 rounded-2xl border border-indigo-100">
+            </div>
         </div>
     </div>
 
@@ -130,7 +153,239 @@
         </div>
     </div>
 
+    <!-- Gemini Password Modal -->
+    <div id="pwd-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[70] flex items-center justify-center hidden opacity-0 transition-opacity">
+        <div class="bg-white p-8 rounded-[2rem] shadow-2xl w-[90%] max-w-sm transform scale-95 transition-transform duration-300" id="pwd-modal-content">
+            <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-amber-200 shadow-inner">
+                <i class="fas fa-lock text-2xl text-amber-500"></i>
+            </div>
+            <h3 class="text-2xl font-black text-center text-slate-800 mb-2">Admin Access</h3>
+            <p class="text-slate-500 text-center mb-6 text-sm font-medium">Gemini is protected. Enter the admin password to unlock.</p>
+            <input type="password" id="pwd-input-modal" class="w-full bg-slate-100 rounded-xl px-4 py-3 mb-6 focus:outline-none focus:ring-2 focus:ring-amber-400 font-bold text-slate-700 tracking-widest text-center" placeholder="••••••••">
+            <div class="flex gap-3">
+                <button onclick="closePwdModal(false)" class="flex-1 bg-slate-200 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-300 transition">Cancel</button>
+                <button onclick="closePwdModal(true)" class="flex-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white py-3 rounded-xl font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all">Unlock</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Selection Modal (Final Batch) -->
+    <div id="ai-select-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[70] flex items-center justify-center hidden opacity-0 transition-opacity">
+        <div class="bg-white p-8 rounded-[2rem] shadow-2xl w-[90%] max-w-md transform scale-95 transition-transform duration-300" id="ai-select-modal-content">
+            <h3 class="text-2xl font-black text-slate-800 mb-2 text-center">🧠 เลือกระดับความฉลาดของ AI</h3>
+            <p class="text-slate-500 text-center mb-6 text-sm font-medium">เลือกสมองประมวลผลที่จะใช้จับคู่ร้านอาหารที่ดีที่สุด!</p>
+            <div class="space-y-3 mb-6">
+                <button onclick="executeBatch('local')" class="w-full text-left p-4 rounded-xl border-2 border-indigo-100 hover:border-indigo-400 hover:bg-indigo-50 transition group relative overflow-hidden">
+                    <div class="flex items-center gap-4 relative z-10">
+                        <div class="w-12 h-12 bg-indigo-100 text-indigo-500 rounded-full flex items-center justify-center text-xl shadow-inner"><i class="fas fa-robot"></i></div>
+                        <div>
+                            <div class="font-black text-slate-800 group-hover:text-indigo-600 transition">Smart Local Bot</div>
+                            <div class="text-xs text-slate-500 font-medium">หาจากฐานข้อมูลของเรา เร็วจัดประหยัดจริง</div>
+                        </div>
+                    </div>
+                </button>
+                <button onclick="executeBatch('groq')" class="w-full text-left p-4 rounded-xl border-2 border-rose-100 hover:border-rose-400 hover:bg-rose-50 transition group relative overflow-hidden">
+                    <div class="flex items-center gap-4 relative z-10">
+                        <div class="w-12 h-12 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center text-xl shadow-inner"><i class="fas fa-rocket"></i></div>
+                        <div>
+                            <div class="font-black text-slate-800 group-hover:text-rose-600 transition">Groq (Llama 3)</div>
+                            <div class="text-xs text-slate-500 font-medium">ฉลาดวิเคราะห์เก่ง ตอบสนองไวปานสายฟ้า</div>
+                        </div>
+                    </div>
+                </button>
+                <button onclick="executeBatch('gemini')" class="w-full text-left p-4 rounded-xl border-2 border-amber-100 hover:border-amber-400 hover:bg-amber-50 transition group relative overflow-hidden">
+                    <div class="flex items-center gap-4 relative z-10">
+                        <div class="w-12 h-12 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center text-xl shadow-inner"><i class="fas fa-magic"></i></div>
+                        <div>
+                            <div class="font-black text-slate-800 group-hover:text-amber-600 transition flex items-center gap-2">Google Gemini <i class="fas fa-lock text-xs text-slate-400"></i></div>
+                            <div class="text-xs text-slate-500 font-medium">เทพสุดเรื่องข้อมูลลึกๆ แต่อาจรอคิดแป๊บนึง</div>
+                        </div>
+                    </div>
+                </button>
+            </div>
+            <button onclick="document.getElementById('ai-select-modal').classList.add('hidden')" class="w-full bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200 transition">ยกเลิก</button>
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div id="alert-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[80] flex items-center justify-center hidden opacity-0 transition-opacity">
+        <div class="bg-white p-8 rounded-[2rem] shadow-2xl w-[90%] max-w-sm transform scale-95 transition-transform duration-300 text-center" id="alert-modal-content">
+            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-200 shadow-inner">
+                <i class="fas fa-exclamation-triangle text-2xl text-red-500" id="alert-icon"></i>
+            </div>
+            <h3 class="text-2xl font-black text-slate-800 mb-2" id="alert-title">Notice</h3>
+            <p class="text-slate-500 mb-6 font-medium" id="alert-message">Something went wrong.</p>
+            <button onclick="closeAlertModal()" class="w-full bg-slate-200 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-300 transition">OK</button>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirm-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[80] flex items-center justify-center hidden opacity-0 transition-opacity">
+        <div class="bg-white p-8 rounded-[2rem] shadow-2xl w-[90%] max-w-sm transform scale-95 transition-transform duration-300 text-center" id="confirm-modal-content">
+            <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-amber-200 shadow-inner">
+                <i class="fas fa-question text-3xl text-amber-500"></i>
+            </div>
+            <h3 class="text-2xl font-black text-slate-800 mb-2" id="confirm-title">Are you sure?</h3>
+            <p class="text-slate-500 mb-6 font-medium" id="confirm-message">Do you want to proceed?</p>
+            <div class="flex gap-3">
+                <button onclick="closeConfirmModal(false)" class="flex-1 bg-slate-200 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-300 transition">Cancel</button>
+                <button onclick="closeConfirmModal(true)" class="flex-1 bg-amber-500 text-white py-3 rounded-xl font-bold shadow-md hover:bg-amber-600 transition">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progressive Loading Modal for AI RAG -->
+    <div id="ai-loading-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[100] flex items-center justify-center hidden opacity-0 transition-all duration-500">
+        <div class="bg-white p-10 rounded-[2.5rem] shadow-[0_0_40px_rgba(99,102,241,0.2)] max-w-sm w-full mx-4 text-center border-4 border-indigo-50 relative overflow-hidden">
+            <div class="absolute inset-0 bg-gradient-to-br from-indigo-50 to-fuchsia-50 opacity-50"></div>
+            <div class="relative z-10">
+                <div class="w-24 h-24 mx-auto mb-6 relative">
+                    <div class="w-full h-full rounded-full border-4 border-indigo-100 border-t-fuchsia-500 animate-spin absolute inset-0"></div>
+                    <div class="w-full h-full rounded-full flex items-center justify-center text-3xl shadow-inner bg-white/80 backdrop-blur-sm" id="ai-loading-emoji">
+                        🔮
+                    </div>
+                </div>
+                <h3 class="text-xl font-black text-slate-800 mb-3" id="ai-loading-title">AI กำลังทำงาน...</h3>
+                <div class="bg-slate-100 rounded-xl p-4 shadow-inner">
+                    <p class="text-sm font-bold text-indigo-600 animate-pulse" id="ai-loading-text">กำลังอัญเชิญ...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual Input Modal -->
+    <div id="manual-input-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[80] flex items-center justify-center hidden opacity-0 transition-opacity">
+        <div class="bg-white p-8 rounded-[2rem] shadow-2xl w-[90%] max-w-sm transform scale-95 transition-transform duration-300 relative" id="manual-input-modal-content">
+            <button onclick="closeManualInput()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors flex justify-center items-center"><i class="fas fa-times"></i></button>
+            <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-200 shadow-inner">
+                <i class="fas fa-edit text-3xl text-emerald-500"></i>
+            </div>
+            <h3 class="text-2xl font-black text-slate-800 mb-2 text-center">ป้อนร้านเองเลย!</h3>
+            <p class="text-slate-500 mb-6 font-medium text-center text-sm">ใส่ชื่อร้านอาหารที่คุณอยากกินมาเลย (1-5 ร้าน)</p>
+            
+            <div class="flex flex-col gap-3 mb-6" id="manual-inputs-container">
+                <input type="text" class="manual-rest-input w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition" placeholder="ร้านที่ 1">
+                <input type="text" class="manual-rest-input w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition" placeholder="ร้านที่ 2">
+                <input type="text" class="manual-rest-input w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition" placeholder="ร้านที่ 3">
+                <input type="text" class="manual-rest-input w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition" placeholder="ร้านที่ 4">
+                <input type="text" class="manual-rest-input w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition" placeholder="ร้านที่ 5">
+            </div>
+            
+            <button onclick="submitManualInput()" class="w-full bg-gradient-to-r from-emerald-400 to-teal-500 text-white py-4 rounded-xl font-black text-lg hover:scale-[1.02] transition shadow-md flex justify-center items-center gap-2">
+                <i class="fas fa-play"></i> ไปสุ่มกันเลย!
+            </button>
+        </div>
+    </div>
+
     <script>
+        let confirmCallback = null;
+
+        function openManualInput() {
+            const modal = document.getElementById('manual-input-modal');
+            const content = document.getElementById('manual-input-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); }, 10);
+            
+            // Add Smart Paste Listener to the first input box
+            const firstInput = document.querySelectorAll('.manual-rest-input')[0];
+            if (firstInput && !firstInput.dataset.pasteListenerAdded) {
+                firstInput.dataset.pasteListenerAdded = 'true';
+                firstInput.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    const text = (e.clipboardData || window.clipboardData).getData('text');
+                    if (!text) return;
+                    
+                    // Split by newlines, strip numbers/bullets, filter empty lines
+                    const lines = text.split('\n')
+                                      .map(line => line.replace(/^[\d\.\-\*\s]+/, '').trim())
+                                      .filter(line => line.length > 0);
+                                      
+                    if (lines.length > 0) {
+                        const inputs = document.querySelectorAll('.manual-rest-input');
+                        lines.slice(0, 5).forEach((line, index) => {
+                            if (inputs[index]) inputs[index].value = line;
+                        });
+                        showAlertModal("Smart Paste!", "กระจายรายชื่อลงทั้ง 5 ช่องเรียบร้อยแล้วครับ!", "fas fa-magic text-2xl text-emerald-500");
+                    }
+                });
+            }
+        }
+
+        function closeManualInput() {
+            const modal = document.getElementById('manual-input-modal');
+            const content = document.getElementById('manual-input-modal-content');
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function submitManualInput() {
+            const inputs = document.querySelectorAll('.manual-rest-input');
+            let restaurants = [];
+            let idCounter = 1;
+            
+            inputs.forEach(input => {
+                const val = input.value.trim();
+                if (val) {
+                    restaurants.push({
+                        id: idCounter++,
+                        name: val,
+                        food_category: "Manual Input"
+                    });
+                }
+            });
+            
+            if (restaurants.length === 0) {
+                showAlertModal("Oops!", "กรุณาใส่ชื่อร้านอย่างน้อย 1 ร้านครับ");
+                return;
+            }
+            
+            closeManualInput();
+            
+            // Tell the backend to broadcast this list to everyone
+            socket.emit('manual-restaurants', { roomId, restaurants });
+        }
+
+        function showAlertModal(title, message, iconClass = 'fas fa-exclamation-triangle text-2xl text-red-500') {
+            document.getElementById('alert-title').textContent = title;
+            document.getElementById('alert-message').textContent = message;
+            document.getElementById('alert-icon').className = iconClass;
+            
+            const modal = document.getElementById('alert-modal');
+            const content = document.getElementById('alert-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); }, 10);
+        }
+
+        function closeAlertModal() {
+            const modal = document.getElementById('alert-modal');
+            const content = document.getElementById('alert-modal-content');
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function showConfirmModal(title, message, onConfirm) {
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-message').textContent = message;
+            confirmCallback = onConfirm;
+            
+            const modal = document.getElementById('confirm-modal');
+            const content = document.getElementById('confirm-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); }, 10);
+        }
+
+        function closeConfirmModal(isConfirm) {
+            const modal = document.getElementById('confirm-modal');
+            const content = document.getElementById('confirm-modal-content');
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                if (isConfirm && confirmCallback) confirmCallback();
+            }, 300);
+        }
         const socket = io();
         
         // 1. Setup Room ID and Username
@@ -204,7 +459,7 @@
         
         function shareToLine() {
             const url = encodeURIComponent(window.location.href);
-            window.open(`https://line.me/R/msg/text/?ชวนมากินข้าวในห้อง AnyMeal AI หน่อย: ${url}`, '_blank');
+            window.open(`https://line.me/R/msg/text/?ชวนมากินข้าวในห้อง Meal Roulette หน่อย: ${url}`, '_blank');
         }
         
         function shareToFB() {
@@ -212,13 +467,57 @@
             window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
         }
         
+        // AI Batch Selection Logic
+        let pendingBatchProvider = null;
+        let aiPassword = localStorage.getItem('ai_password') || '';
+
+        function executeBatch(provider) {
+            const aiModal = document.getElementById('ai-select-modal');
+            if (aiModal) aiModal.classList.add('hidden');
+            
+            if (provider === 'gemini') {
+                pendingBatchProvider = 'gemini';
+                document.getElementById('pwd-input-modal').value = '';
+                const modal = document.getElementById('pwd-modal');
+                const content = document.getElementById('pwd-modal-content');
+                modal.classList.remove('hidden');
+                setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); }, 10);
+                return;
+            }
+            triggerBatchAPI(provider, '');
+        }
+        
+        function triggerBatchAPI(provider, pwd) {
+            if (pwd) {
+                aiPassword = pwd;
+                localStorage.setItem('ai_password', pwd);
+            }
+            socket.emit('generate-batch-result', { roomId, aiProvider: provider, aiPassword: aiPassword });
+            document.getElementById('ai-select-modal').classList.add('hidden');
+        }
+        
+        function closePwdModal(isSubmit) {
+            const modal = document.getElementById('pwd-modal');
+            const content = document.getElementById('pwd-modal-content');
+            
+            if (isSubmit) {
+                const pwd = document.getElementById('pwd-input-modal').value;
+                if (!pwd) return;
+                triggerBatchAPI(pendingBatchProvider, pwd);
+            }
+            
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+        
         function usePrompt(text) {
             document.getElementById('chat-input').value = text;
             document.getElementById('chat-form').dispatchEvent(new Event('submit'));
         }
 
-        // 2. Join Room
-        socket.emit('join-room', roomId);
+        // 2. Join Room (Chat is always Local Bot)
+        socket.emit('join-room', { roomId, username, aiProvider: 'local', aiPassword });
 
         // 3. UI Elements
         const chatBox = document.getElementById('chat-box');
@@ -254,15 +553,18 @@
             }
             
             // Handle dynamic suggested prompts
-            if (msg.suggestedPrompts && msg.suggestedPrompts.length > 0) {
-                const container = document.getElementById('quick-prompts-container');
-                if (container) {
+            const container = document.getElementById('quick-prompts-container');
+            if (container) {
+                if (msg.suggestedPrompts && msg.suggestedPrompts.length > 0) {
                     container.innerHTML = '';
                     const colors = ['bg-pink-100 text-pink-600', 'bg-sky-100 text-sky-600', 'bg-slate-100 text-slate-600', 'bg-orange-100 text-orange-600', 'bg-indigo-100 text-indigo-600'];
                     msg.suggestedPrompts.forEach((prompt, index) => {
                         const color = colors[index % colors.length];
-                        container.innerHTML += `<button onclick="usePrompt('${prompt.replace(/'/g, "\\'")}')" class="text-xs ${color} hover:opacity-80 px-3 py-1.5 rounded-full font-bold transition">💡 ${prompt}</button>`;
+                        container.innerHTML += `<button onclick="usePrompt('${prompt.replace(/'/g, "\\'")}')" class="text-xs ${color} hover:opacity-80 px-3 py-1.5 rounded-full font-bold transition whitespace-nowrap shadow-sm">💡 ${prompt}</button>`;
                     });
+                } else if (isAI) {
+                    // Only clear if the message was from AI and it had no suggestions
+                    container.innerHTML = '';
                 }
             }
         }
@@ -279,7 +581,60 @@
             spinnerContainer.classList.add('hidden');
             content.classList.remove('hidden');
             
-            if (cmd.type === 'RESULT_LIST') {
+            if (cmd.type === 'CONFIRM_SLOTS') {
+                document.getElementById('overlay-title').textContent = "📋 ยืนยันข้อมูล";
+                document.getElementById('overlay-subtitle').textContent = "โปรดตรวจสอบข้อมูลก่อนให้ AI เลือกร้าน";
+                const s = cmd.data;
+                const html = `
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6 text-left">
+                        <div class="space-y-4 font-medium text-slate-700">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-map-marker-alt text-rose-500 w-5 text-center"></i>
+                                <div class="flex-1">
+                                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">พิกัด</label>
+                                    <input type="text" id="slot-location" value="${s.location || ''}" placeholder="เช่น สยาม, ลาดพร้าว" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition">
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-utensils text-orange-500 w-5 text-center"></i>
+                                <div class="flex-1">
+                                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">แนวอาหาร</label>
+                                    <input type="text" id="slot-category" value="${s.category || ''}" placeholder="เช่น ชาบู, ญี่ปุ่น" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition">
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-clock text-sky-500 w-5 text-center"></i>
+                                <div class="flex-1">
+                                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">มื้ออาหาร</label>
+                                    <input type="text" id="slot-meal" value="${s.meal || ''}" placeholder="เช่น เที่ยง, เย็น" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition">
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-wallet text-emerald-500 w-5 text-center"></i>
+                                <div class="flex-1">
+                                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">งบประมาณ</label>
+                                    <input type="text" id="slot-budget" value="${s.budget || ''}" placeholder="เช่น 300, ไม่จำกัด" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition">
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-snowflake text-blue-400 w-5 text-center"></i>
+                                <div class="flex-1">
+                                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">แอร์</label>
+                                    <input type="text" id="slot-aircon" value="${s.aircon || ''}" placeholder="เช่น มีแอร์, ไม่มีแอร์" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-3">
+                        <button onclick="saveSlotsAndBatch()" class="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white py-4 rounded-xl font-black text-lg hover:scale-[1.02] transition shadow-lg flex justify-center items-center gap-2">
+                            <i class="fas fa-magic"></i> ✨ บันทึกและให้ AI จัดร้านให้เลย!
+                        </button>
+                    </div>
+                `;
+                content.innerHTML = html;
+                overlay.classList.remove('hidden');
+                setTimeout(() => overlay.classList.remove('opacity-0'), 100);
+            } else if (cmd.type === 'RESULT_LIST') {
                 aiGeneratedList = cmd.data;
                 let html = `<h3 class="text-xl font-black text-slate-800 mb-2 text-center">📋 Vote for your Favorite!</h3>
                 <div class="text-center mb-4"><span id="vote-status" class="text-xs font-bold text-indigo-500 bg-indigo-50 py-1 px-3 rounded-full inline-block">กำลังโหลดจำนวนผู้เล่น...</span></div>
@@ -320,15 +675,20 @@
         function finishVoting() {
             const finishBtn = document.getElementById('finish-vote-btn');
             if (finishBtn && finishBtn.classList.contains('opacity-50')) {
-                alert("ต้องมีคนโหวตอย่างน้อย 1 คนถึงจะสรุปผลได้ครับ!");
+                showAlertModal("Oops!", "ต้องมีคนโหวตอย่างน้อย 1 คนถึงจะสรุปผลได้ครับ!");
                 return;
             }
             const statusDiv = document.getElementById('vote-status');
             if (statusDiv && !statusDiv.textContent.includes('โหวตครบ')) {
-                if (!confirm("ยังมีคนในห้องโหวตไม่ครบเลย แน่ใจนะว่าจะปิดโหวตแล้ว?")) {
-                    return;
-                }
+                showConfirmModal("Are you sure?", "ยังมีคนในห้องโหวตไม่ครบเลย แน่ใจนะว่าจะปิดโหวตแล้ว?", () => {
+                    socket.emit('finish-voting', { roomId });
+                    const overlay = document.getElementById('result-overlay');
+                    overlay.classList.add('opacity-0');
+                    setTimeout(() => overlay.classList.add('hidden'), 500);
+                });
+                return;
             }
+            
             socket.emit('finish-voting', { roomId });
             const overlay = document.getElementById('result-overlay');
             overlay.classList.add('opacity-0');
@@ -409,7 +769,9 @@
             spinnerContainer.classList.add('hidden');
             content.classList.remove('hidden');
             
-            const url = `https://www.google.com/maps/search/${encodeURIComponent(data.name)}+${encodeURIComponent(data.food_category)}`;
+            const loc = (cmd.slots && cmd.slots.location) ? " " + cmd.slots.location : "";
+            const categoryForMap = data.food_category === "Manual Input" ? "" : " " + data.food_category;
+            const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.name + categoryForMap + loc)}`;
             
             const resultHtml = `
                 <div class="text-center">
@@ -418,12 +780,21 @@
                     </div>
                     <h3 class="text-2xl font-black mb-2 text-slate-800">${data.name}</h3>
                     <p class="text-slate-500 font-bold mb-6">${data.food_category} • ${data.price_range}</p>
-                    <a href="${url}" target="_blank" class="block w-full bg-[#4285F4] text-white py-4 rounded-xl font-bold hover:bg-[#3367D6] transition shadow-md flex justify-center items-center gap-2">
-                        <i class="fas fa-map-marker-alt"></i> Open in Google Maps
-                    </a>
+                    <div class="flex flex-col gap-3">
+                        <a href="${url}" target="_blank" class="block w-full bg-[#4285F4] text-white py-4 rounded-xl font-bold hover:bg-[#3367D6] transition shadow-md flex justify-center items-center gap-2">
+                            <i class="fas fa-map-marker-alt"></i> Open in Google Maps
+                        </a>
+                    </div>
                 </div>`;
             
-            content.innerHTML = resultHtml;
+            const overlayHtml = resultHtml.replace('</div>\n                </div>', `
+                        <button onclick="document.getElementById('result-overlay').classList.add('hidden')" class="block w-full bg-slate-200 text-slate-700 py-4 rounded-xl font-bold hover:bg-slate-300 transition shadow-sm flex justify-center items-center gap-2">
+                            <i class="fas fa-comment-dots"></i> กลับไปหน้าแชท
+                        </button>
+                    </div>
+                </div>`);
+            
+            content.innerHTML = overlayHtml;
             overlay.classList.remove('hidden');
             setTimeout(() => overlay.classList.remove('opacity-0'), 100);
             
@@ -458,6 +829,176 @@
             
             summaryContent.innerHTML = summaryHtml;
             summaryPanel.classList.remove('hidden');
+            setTimeout(() => {
+                summaryPanel.classList.remove('opacity-0');
+                const contentNode = document.getElementById('room-summary-modal-content');
+                if(contentNode) contentNode.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeRoomSummary() {
+            const modal = document.getElementById('room-summary');
+            const content = document.getElementById('room-summary-modal-content');
+            modal.classList.add('opacity-0');
+            if(content) content.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function saveSlotsAndBatch() {
+            const loc = document.getElementById('slot-location')?.value.trim();
+            const cat = document.getElementById('slot-category')?.value.trim();
+            const meal = document.getElementById('slot-meal')?.value.trim();
+            const budget = document.getElementById('slot-budget')?.value.trim();
+            const aircon = document.getElementById('slot-aircon')?.value.trim();
+            
+            socket.emit('update-slots', { 
+                roomId, 
+                slots: { location: loc, category: cat, meal: meal, budget: budget, aircon: aircon } 
+            });
+            
+            requestBatchResult();
+        }
+
+        function requestBatchResult() {
+            const overlay = document.getElementById('result-overlay');
+            if (overlay) overlay.classList.add('hidden');
+            
+            // Open AI Select Modal
+            const modal = document.getElementById('ai-select-modal');
+            const content = document.getElementById('ai-select-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); }, 10);
+        }
+
+        socket.on('ask-confirm-search', ({ dimensions }) => {
+            const overlay = document.getElementById('result-overlay');
+            const content = document.getElementById('result-content');
+            const spinnerContainer = document.getElementById('spinner-container');
+            
+            document.getElementById('overlay-title').textContent = "📋 ยืนยันข้อมูลก่อนค้นหา";
+            document.getElementById('overlay-subtitle').textContent = "สรุปข้อมูล 5 มิติจากที่คุณคุยกัน เลือกวิธีหาร้านได้เลยครับ!";
+            spinnerContainer.classList.add('hidden');
+            content.classList.remove('hidden');
+            
+            const s = dimensions;
+            const html = `
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6 text-left">
+                    <div class="space-y-4 font-medium text-slate-700">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-map-marker-alt text-rose-500 w-5 text-center"></i>
+                            <div class="flex-1">
+                                <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">พิกัด</label>
+                                <input type="text" id="slot-location" value="${s.location || ''}" placeholder="เช่น สยาม, ลาดพร้าว, ตึก Enco" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none">
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-utensils text-orange-500 w-5 text-center"></i>
+                            <div class="flex-1">
+                                <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">แนวอาหาร</label>
+                                <input type="text" id="slot-category" value="${s.category || ''}" placeholder="เช่น ชาบู, คาเฟ่, ชานมไข่มุก" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none">
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-wallet text-emerald-500 w-5 text-center"></i>
+                            <div class="flex-1">
+                                <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">งบประมาณ</label>
+                                <input type="text" id="slot-budget" value="${s.budget || ''}" placeholder="เช่น ไม่เกิน 300/คน, บุฟเฟต์ 599" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none">
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-star text-yellow-400 w-5 text-center"></i>
+                            <div class="flex-1">
+                                <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">บรรยากาศ</label>
+                                <input type="text" id="slot-vibe" value="${s.vibe || ''}" placeholder="เช่น ถ่ายรูปสวย, มีแอร์, ในห้าง" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none">
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-list text-blue-400 w-5 text-center"></i>
+                            <div class="flex-1">
+                                <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">เงื่อนไขพิเศษ</label>
+                                <input type="text" id="slot-req" value="${s.specific_req || ''}" placeholder="เช่น มีที่จอดรถ, รัศมี 5 กิโล, เดินจาก BTS ได้" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-3">
+                    <button onclick="executeConfirmSearch('groq')" class="w-full bg-gradient-to-r from-orange-400 to-amber-500 text-white py-3 rounded-xl font-black text-sm hover:scale-[1.02] transition shadow-md flex justify-center items-center gap-2">
+                        <i class="fas fa-bolt"></i> ค้นหาอัตโนมัติ (Groq)
+                    </button>
+                    <button onclick="openVipPasswordModal()" class="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white py-3 rounded-xl font-black text-sm hover:scale-[1.02] transition shadow-md flex justify-center items-center gap-2">
+                        <i class="fas fa-gem"></i> VIP ค้นหาอัตโนมัติ (Gemini)
+                    </button>
+                    <button onclick="copySmartPrompt()" class="w-full bg-slate-200 text-slate-700 py-3 rounded-xl font-bold text-sm hover:bg-slate-300 transition shadow-sm flex justify-center items-center gap-2">
+                        <i class="fas fa-copy"></i> สร้าง Prompt ไปถาม AI ตัวอื่นเอง
+                    </button>
+                </div>
+            `;
+            content.innerHTML = html;
+            overlay.classList.remove('hidden');
+            setTimeout(() => overlay.classList.remove('opacity-0'), 100);
+        });
+
+        function getDimensionsFromInputs() {
+            return {
+                location: document.getElementById('slot-location')?.value.trim(),
+                category: document.getElementById('slot-category')?.value.trim(),
+                budget: document.getElementById('slot-budget')?.value.trim(),
+                vibe: document.getElementById('slot-vibe')?.value.trim(),
+                specific_req: document.getElementById('slot-req')?.value.trim()
+            };
+        }
+
+        function executeConfirmSearch(provider, pwd = null) {
+            const dims = getDimensionsFromInputs();
+            document.getElementById('result-overlay').classList.add('hidden');
+            
+            // Post temporary chat message
+            appendMessage({
+                sender: 'System', 
+                text: `⏳ กำลังให้ **${provider.toUpperCase()}** ค้นหา **${dims.category || 'อาหาร'}** แถว **${dims.location || 'ที่นี่'}** ให้นะครับ รอแป๊บเดียว! ⚡`,
+                isSystem: true
+            });
+            
+            socket.emit('execute-search', { roomId, dimensions: dims, aiProvider: provider, aiPassword: pwd });
+        }
+
+        function openVipPasswordModal() {
+            document.getElementById('pwd-input-modal').value = '';
+            const modal = document.getElementById('pwd-modal');
+            const content = document.getElementById('pwd-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); }, 10);
+            
+            // Override the old closePwdModal logic just for this
+            window.submitVipPassword = function() {
+                const pwd = document.getElementById('pwd-input-modal').value;
+                if(!pwd) return;
+                modal.classList.add('opacity-0');
+                content.classList.add('scale-95');
+                setTimeout(() => modal.classList.add('hidden'), 300);
+                executeConfirmSearch('gemini', pwd);
+            }
+            
+            // Adjust the modal button to call submitVipPassword
+            const submitBtn = content.querySelector('button.bg-indigo-600');
+            if (submitBtn) {
+                submitBtn.setAttribute('onclick', 'submitVipPassword()');
+            }
+        }
+
+        function copySmartPrompt() {
+            const dims = getDimensionsFromInputs();
+            const prompt = `ในฐานะผู้เชี่ยวชาญด้านอาหาร โปรดแนะนำร้านอาหารหรือเครื่องดื่มหมวดหมู่ [${dims.category}] ย่าน [${dims.location}]${dims.budget ? ' ที่มีราคา [' + dims.budget + ']' : ''}${dims.vibe ? ' ที่มีบรรยากาศ [' + dims.vibe + ']' : ''}${dims.specific_req ? ' และมีเงื่อนไขพิเศษ [' + dims.specific_req + ']' : ''} (เน้นหาร้านตามหมวดหมู่ที่ระบุ ไม่จำเป็นต้องเป็นมื้อหลักเสมอไป) ขอข้อมูลรีวิวสั้นๆ เมนูแนะนำ และลิงก์ Google Maps เพื่อประกอบการตัดสินใจ\n\nและในตอนท้ายสุดของคำตอบ ขอให้สรุปเฉพาะ "ชื่อร้านล้วนๆ" ทั้ง 5 ร้านเรียงกันมาเป็น Bullet points เพื่อให้ฉันสามารถก๊อปปี้ชื่อไปใช้ต่อได้สะดวกที่สุด`;
+            navigator.clipboard.writeText(prompt).then(() => {
+                showAlertModal("Copied!", "คัดลอก Prompt อัจฉริยะแล้ว! นำไปแปะใน ChatGPT หรือ AI ของคุณ แล้วนำรายชื่อร้านที่ได้มากด 'ป้อนร้านเอง (Manual)' ได้เลยครับ", "fas fa-check-circle text-2xl text-emerald-500");
+                document.getElementById('result-overlay').classList.add('hidden');
+                
+                // Show prompt in chat
+                appendMessage({
+                    sender: username,
+                    text: `💡 **สร้าง Prompt ไปถาม AI:**\n\n${prompt}`
+                });
+            });
         }
 
         // Socket Events
@@ -467,8 +1008,82 @@
         });
 
         socket.on('chat-message', (msg) => {
+            // Hide loading modal if it was open
+            const modal = document.getElementById('ai-loading-modal');
+            if (modal && !modal.classList.contains('hidden')) {
+                modal.classList.add('opacity-0');
+                setTimeout(() => modal.classList.add('hidden'), 500);
+            }
+            
             appendMessage(msg);
         });
+
+        // Progressive Loading Handler
+        socket.on('ai-progress', (data) => {
+            const modal = document.getElementById('ai-loading-modal');
+            const textEl = document.getElementById('ai-loading-text');
+            textEl.textContent = data.status;
+            
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                setTimeout(() => modal.classList.remove('opacity-0'), 10);
+            }
+        });
+
+        // Hide Loading Modal on missing info
+        socket.on('ask-missing-info', (data) => {
+            const modal = document.getElementById('ai-loading-modal');
+            modal.classList.add('opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 500);
+
+            // The chat input remains enabled so the user can type freely
+            chatInput.placeholder = "พิมพ์พิกัดหรือข้อมูลเพิ่มเติมได้เลย...";
+
+            const chipsContainer = document.getElementById('suggestion-chips-container');
+            chipsContainer.innerHTML = '';
+            
+            // Build dynamic chips based on what's missing
+            let options = [];
+            if (data.missing_fields.includes("location")) {
+                options = ["📍 แถวสยาม", "📍 แถวลาดพร้าว", "📍 แถวหาดใหญ่", "📍 บรรทัดทอง"];
+            } else if (data.missing_fields.includes("category")) {
+                options = ["🍲 ชาบู/สุกี้", "🍣 อาหารญี่ปุ่น", "🥗 ส้มตำ/อีสาน", "🥩 ปิ้งย่าง", "☕ คาเฟ่"];
+            } else if (data.missing_fields.includes("budget")) {
+                options = ["💸 ไม่เกิน 300", "💰 ไม่เกิน 500", "💎 ไม่จำกัดงบ", "💵 เน้นคุ้มค่า"];
+            } else if (data.missing_fields.includes("vibe")) {
+                options = ["📸 ถ่ายรูปสวย", "🤫 เงียบสงบ", "🎉 เหมาะกับปาร์ตี้", "❤️ เดทโรแมนติก"];
+            } else if (data.missing_fields.includes("specific_req")) {
+                options = ["🚗 มีที่จอดรถ", "🚉 ใกล้รถไฟฟ้า", "🐶 Pet-friendly", "🚫 ไม่กินเผ็ด"];
+            }
+
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "text-xs bg-indigo-100 text-indigo-600 hover:bg-indigo-200 px-4 py-2 rounded-full font-black transition whitespace-nowrap shadow-sm";
+                btn.textContent = opt;
+                btn.onclick = () => {
+                    // Send the chip text as a user message
+                    socket.emit('send-message', { roomId, sender: username, text: opt });
+                    // Reset placeholder
+                    chatInput.placeholder = "พิมพ์คุยกับเพื่อนตามสบาย...";
+                    chipsContainer.classList.add('hidden');
+                    // Automatically re-invoke AI
+                    setTimeout(() => invokeAI(), 500);
+                };
+                chipsContainer.appendChild(btn);
+            });
+            
+            chipsContainer.classList.remove('hidden');
+        });
+
+        function invokeAI() {
+            // Show loading modal immediately with initial text
+            const modal = document.getElementById('ai-loading-modal');
+            document.getElementById('ai-loading-text').textContent = "กำลังเชื่อมต่อกับ AI...";
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+
+            socket.emit('invoke-ai', { roomId });
+        }
 
         // Form Submit
         chatForm.addEventListener('submit', (e) => {
@@ -478,6 +1093,11 @@
             
             socket.emit('send-message', { roomId, sender: username, text });
             chatInput.value = '';
+
+            // If user mentions @bot, automatically invoke AI
+            if (text.includes('@bot')) {
+                setTimeout(() => invokeAI(), 300);
+            }
         });
     </script>
 </body>

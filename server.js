@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { OpenAI } = require('openai');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const fs = require('fs');
@@ -28,6 +29,11 @@ const readData = () => {
 const writeData = (data) => {
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 };
+
+// Health check for Render Cold Start Warm-Up
+app.get('/api/health', (req, res) => {
+    res.status(200).json({ status: 'ok', message: 'Backend is awake!' });
+});
 
 // GET all data
 app.get('/api/data', (req, res) => {
@@ -222,7 +228,7 @@ setInterval(() => {
 
 const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 
-const systemInstruction = `คุณคือผู้ช่วย AI ชื่อ AnyMeal สำหรับเลือกร้านอาหารในกลุ่มแชท 
+const systemInstruction = `คุณคือผู้ช่วย AI ชื่อ Meal Roulette สำหรับเลือกร้านอาหารในกลุ่มแชท 
 หน้าทีของคุณคือชวนผู้ใช้คุยอย่างเป็นธรรมชาติและเป็นกันเองเพื่อหาข้อมูล 6 อย่าง:
 1. โลเคชั่น/พิกัด (เช่น สยาม, รังสิต, ใกล้ออฟฟิศ) **สำคัญมาก เพราะเล่นหลายคนต้องมีจุดนัดพบ**
 2. มื้อไหน (เช้า/เที่ยง/เย็น) 
@@ -246,7 +252,7 @@ const systemInstruction = `คุณคือผู้ช่วย AI ชื่�
 ]`;
 
 const aiQuestions = [
-    "สวัสดีครับ! ยินดีต้อนรับสู่ AnyMeal AI 🤖 \nเพื่อให้ผมหาร้านได้แม่นยำที่สุด ขอทราบหน่อยครับว่ามื้อนี้เป็น **มื้อไหน (เช้า/เที่ยง/เย็น/ดึก)** ครับ?",
+    "สวัสดีครับ! ยินดีต้อนรับสู่ Meal Roulette 🤖 \nเพื่อให้ผมหาร้านได้แม่นยำที่สุด ขอทราบหน่อยครับว่ามื้อนี้เป็น **มื้อไหน (เช้า/เที่ยง/เย็น/ดึก)** ครับ?",
     "รับทราบครับ! แล้วมื้อนี้อยากทานอาหาร **หมวดหมู่ไหน** เป็นพิเศษไหมครับ? (เช่น อาหารไทย, ญี่ปุ่น, ชาบู, หรือตามสั่ง)",
     "น่าอร่อยจัง! แล้วมี **งบประมาณ** ประมาณเท่าไหร่ครับ? (เช่น ต่ำกว่า 100, 100-200, หรือเกิน 200)",
     "โอเคครับ เพื่อความสบายใจ อยากได้ร้านที่ **มีแอร์ (Air-Conditioned)** ไหมครับ?",
@@ -254,184 +260,196 @@ const aiQuestions = [
     "ได้ข้อมูลครบถ้วนแล้วครับ! สุดท้ายนี้ คุณอยากให้ผม **สุ่มมาให้ 1 ร้านเลย** หรืออยากให้ผม **ส่งเป็น List รายชื่อร้าน** ให้ทุกคนช่วยกันสุ่มครับ?"
 ];
 
+// Robust JSON List Extractor
+function extractFinalList(text) {
+    let jsonStr = null;
+    let remainingText = text;
+    const match = text.match(/\[\s*\{.*"id"\s*:.*\}\s*\]/s);
+    
+    if (text.includes('[FINAL_LIST]')) {
+        const parts = text.split('[FINAL_LIST]');
+        remainingText = parts[0].trim();
+        jsonStr = parts[1];
+    } else if (match) {
+        jsonStr = match[0];
+        remainingText = text.replace(jsonStr, '').trim();
+    }
+    
+    if (jsonStr) {
+        try {
+            const parsed = JSON.parse(jsonStr.replace(/```json/g, '').replace(/```/g, '').trim());
+            if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].id) {
+                return { list: parsed, text: remainingText };
+            }
+        } catch (e) { console.error("JSON parse error:", e); }
+    }
+    return null;
+}
+
+// Initialize Groq
+const groq = new OpenAI({
+    baseURL: 'https://api.groq.com/openai/v1',
+    apiKey: process.env.GROQ_API_KEY
+});
+
 io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
 
-    socket.on('join-room', async (roomId) => {
+    socket.on('join-room', async (data) => {
+        let roomId, username, aiProvider, aiPassword;
+        if (typeof data === 'string') { roomId = data; aiProvider = 'local'; }
+        else { roomId = data.roomId; username = data.username; aiProvider = data.aiProvider || 'local'; aiPassword = data.aiPassword; }
+        
         socket.join(roomId);
-        socket.roomId = roomId; // Track room for disconnect
-        console.log(`User ${socket.id} joined room ${roomId}`);
+        socket.roomId = roomId;
         
         if (!rooms[roomId]) {
             rooms[roomId] = {
                 lastActive: Date.now(),
                 participants: 1,
-                state: 0,
                 messages: [],
-                chat: null,
                 votes: {},
-                restaurantList: null
+                userVotes: {},
+                userNames: {},
+                restaurantList: null,
+                aiProvider: aiProvider,
+                geminiChat: null,
+                geminiChat: null,
+                groqMessages: [],
+                slotState: { location: null, meal: null, category: null, budget: null, aircon: null, rating: null },
+                offTopicCount: 0,
+                guardrailLevel: 0,
+                pendingSlot: 'location'
             };
             
-            if (genAI) {
-                try {
-                    const model = genAI.getGenerativeModel({ 
-                        model: "gemini-flash-latest", 
-                        systemInstruction
-                    });
-                    rooms[roomId].chat = model.startChat();
-                    const result = await rooms[roomId].chat.sendMessage("สวัสดีครับ มีใครอยู่ไหม ขอให้เริ่มแนะนำตัวและถามคำถามแรกได้เลย พร้อมแนบ [SUGGESTIONS] มาด้วย");
-                    let text = result.response.text();
-                    let suggestedPrompts = null;
-                    if (text.includes('[SUGGESTIONS]')) {
-                        const parts = text.split('[SUGGESTIONS]');
-                        text = parts[0].trim();
-                        suggestedPrompts = parts[1].split('\n')[0].split(',').map(s => s.trim()).filter(s => s);
-                    }
-                    const welcomeMsg = { sender: 'AI', text: text, isSystem: true, suggestedPrompts };
-                    rooms[roomId].messages.push(welcomeMsg);
-                    io.to(roomId).emit('chat-message', welcomeMsg);
-                } catch (e) {
-                    console.error("Gemini Error:", e);
-                    const errorMsg = { sender: 'System', text: '⚠️ [ระบบ] โควต้า AI ของคุณเต็มแล้ว! ระบบจะสลับเข้าสู่โหมดจำลองเพื่อให้คุณทดสอบฟีเจอร์โหวตได้ครับ พิมพ์อะไรก็ได้เพื่อดูรายชื่อร้านจำลอง', isSystem: true };
-                    rooms[roomId].messages.push(errorMsg);
-                    io.to(roomId).emit('chat-message', errorMsg);
-                    room.isMockMode = true;
-                }
-            } else {
-                // Mock AI initiates the conversation
-                setTimeout(() => {
-                    const welcomeMsg = { sender: 'AI', text: aiQuestions[0], isSystem: true };
-                    rooms[roomId].messages.push(welcomeMsg);
-                    io.to(roomId).emit('chat-message', welcomeMsg);
-                }, 500);
-            }
+            const welcomeMsg = { 
+                sender: 'AI', 
+                text: `สวัสดีครับ! ยินดีต้อนรับสู่ห้อง ${roomId} 🤖 ผมคือผู้ช่วยเลือกร้านอาหาร\nเพื่อความแม่นยำ ผมขอทราบ **"พิกัด" (Location)** และ **"แนวอาหาร" (Category)** ที่อยากทานก่อนนะครับ!`, 
+                isSystem: true, 
+                suggestedPrompts: ["สยาม", "ลาดพร้าว", "อยากกินชาบู", "อาหารญี่ปุ่น", "สุ่มเลย!"] 
+            };
+            
+            rooms[roomId].messages.push(welcomeMsg);
+            setTimeout(() => io.to(roomId).emit('chat-message', welcomeMsg), 500);
+            
         } else {
             rooms[roomId].participants++;
-            // Send chat history to the newly joined user
+            
+            // Ensure slotState exists for old rooms
+            if (!rooms[roomId].slotState) {
+                rooms[roomId].slotState = { location: null, meal: null, category: null, budget: null, aircon: null, rating: null };
+            }
+            if (typeof rooms[roomId].offTopicCount === 'undefined') rooms[roomId].offTopicCount = 0;
+            if (typeof rooms[roomId].guardrailLevel === 'undefined') rooms[roomId].guardrailLevel = 0;
             socket.emit('chat-history', rooms[roomId].messages);
         }
     });
 
-    socket.on('send-message', async ({ roomId, sender, text }) => {
+    socket.on('update-slots', ({ roomId, slots }) => {
         if (!rooms[roomId]) return;
-        if (sender === 'System') return; // Ignore system messages to avoid loops
+        // Merge the slots
+        rooms[roomId].slotState = { ...rooms[roomId].slotState, ...slots };
+    });
+
+    socket.on('send-message', async (data) => {
+        const { roomId, sender, text, aiProvider, aiPassword } = data;
+        if (!rooms[roomId] || sender === 'System') return;
         
-        rooms[roomId].lastActive = Date.now();
+        const room = rooms[roomId];
+        room.lastActive = Date.now();
         
         // Broadcast user message
         const userMsg = { sender, text };
-        rooms[roomId].messages.push(userMsg);
+        room.messages.push(userMsg);
         io.to(roomId).emit('chat-message', userMsg);
         
+        // No AI intervention unless requested via invoke-ai
+    });
+
+    socket.on('invoke-ai', async ({ roomId }) => {
         const room = rooms[roomId];
+        if (!room) return;
         
-        if (room.chat) {
-            // Real Gemini Logic
-            try {
-                const result = await room.chat.sendMessage(`[${sender}]: ${text}`);
-                const responseText = result.response.text();
-                
-                let aiResponse = responseText;
-                let command = null;
-                let suggestedPrompts = null;
-                
-                if (aiResponse.includes('[SUGGESTIONS]')) {
-                    const parts = aiResponse.split('[SUGGESTIONS]');
-                    aiResponse = parts[0].trim();
-                    const suggestionsStr = parts[1].split('\n')[0]; // get the first line after tag
-                    suggestedPrompts = suggestionsStr.split(',').map(s => s.trim()).filter(s => s);
-                    // clean up the rest of the text in case AI added more text after suggestions
-                    const remainingText = parts[1].substring(suggestionsStr.length).trim();
-                    if (remainingText && !remainingText.includes('[FINAL_LIST]')) {
-                        aiResponse += "\n" + remainingText;
-                    } else if (remainingText.includes('[FINAL_LIST]')) {
-                        aiResponse += "\n" + remainingText; // pass it to the next parser
-                    }
-                }
-                
-                if (aiResponse.includes('[FINAL_LIST]')) {
-                    const parts = responseText.split('[FINAL_LIST]');
-                    aiResponse = parts[0].trim();
-                    try {
-                        const jsonStr = parts[1].replace(/```json/g, '').replace(/```/g, '').trim();
-                        const listData = JSON.parse(jsonStr);
-                        room.restaurantList = listData;
-                        room.votes = {};
-                        room.userVotes = {};
-                        listData.forEach(r => room.votes[r.id] = 0);
-                        command = { type: 'RESULT_LIST', data: listData };
-                        setTimeout(() => {
-                            io.to(roomId).emit('update-votes', {
-                                votes: room.votes,
-                                totalParticipants: room.participants,
-                                totalVoted: 0
-                            });
-                        }, 500);
-                    } catch(e) {
-                        console.error('Failed to parse JSON from AI', e);
-                        aiResponse += "\n(Error parsing AI list)";
-                    }
-                }
-                
-                const aiMsg = { sender: 'AI', text: aiResponse, isSystem: true, command, suggestedPrompts };
-                room.messages.push(aiMsg);
-                io.to(roomId).emit('chat-message', aiMsg);
-            } catch (e) {
-                console.error("Gemini Chat Error:", e);
-                const mockList = [
-                    { "id": 1, "name": "ร้านจำลอง A", "food_category": "ตามสั่ง", "price_range": "50" },
-                    { "id": 2, "name": "ร้านจำลอง B", "food_category": "ชาบู", "price_range": "300" },
-                    { "id": 3, "name": "ร้านจำลอง C", "food_category": "คาเฟ่", "price_range": "100" }
-                ];
-                room.restaurantList = mockList;
-                room.votes = {};
-                room.userVotes = {};
-                mockList.forEach(r => room.votes[r.id] = 0);
-                const command = { type: 'RESULT_LIST', data: mockList };
-                
-                const fallbackMsg = { sender: 'AI', text: "⚠️ เนื่องจากลิมิต AI เต็ม นี่คือรายชื่อร้านแบบจำลองเพื่อให้คุณสามารถทดสอบระบบโหวตและ UI ต่อได้ครับ!", isSystem: true, command };
-                room.messages.push(fallbackMsg);
-                io.to(roomId).emit('chat-message', fallbackMsg);
-                
-                setTimeout(() => {
-                    io.to(roomId).emit('update-votes', {
-                        votes: room.votes,
-                        totalParticipants: room.participants,
-                        totalVoted: 0
-                    });
-                }, 500);
-            }
+        // Context Gathering: Last 10 messages from users only (to save tokens and prevent AI confusion)
+        const userMessages = room.messages.filter(m => m.sender !== 'AI' && m.sender !== 'System');
+        const recentMessages = userMessages.slice(-10).map(m => `[${m.sender}]: ${m.text}`).join('\n');
+        
+        // Import aiService dynamically if not at top level
+        const { generateReActResponse, executeRAGSearch } = require('./services/aiService');
+        
+        const progressCallback = (msg) => {
+            io.to(roomId).emit('ai-progress', { status: msg });
+        };
+        
+        const result = await generateReActResponse(recentMessages, progressCallback);
+        
+        if (result.status === 'missing_info') {
+            // Tell frontend to show Suggestion Chips
+            io.to(roomId).emit('ask-missing-info', { missing_fields: result.missing_fields });
+            // Send bot's question text
+            const aiMsg = { sender: 'AI', text: result.message, isSystem: true };
+            room.messages.push(aiMsg);
+            io.to(roomId).emit('chat-message', aiMsg);
+        } else if (result.status === 'confirm_search') {
+            // Tell frontend to show Confirmation Modal with Dimensions
+            io.to(roomId).emit('ask-confirm-search', { dimensions: result.dimensions });
+            // Send bot's summary question
+            const aiMsg = { sender: 'AI', text: 'สรุปข้อมูลตามนี้นะครับ ตรวจสอบแล้วเลือกวิธีค้นหาได้เลย!', isSystem: true };
+            room.messages.push(aiMsg);
+            io.to(roomId).emit('chat-message', aiMsg);
         } else {
-            // Mock AI Processing
-            if (room.state < 5) {
-                room.state++;
-                setTimeout(() => {
-                    const aiMsg = { sender: 'AI', text: aiQuestions[room.state], isSystem: true };
-                    room.messages.push(aiMsg);
-                    io.to(roomId).emit('chat-message', aiMsg);
-                }, 1000);
-            } else if (room.state === 5) {
-                // Final Decision
-                room.state++;
-                setTimeout(() => {
-                    let aiResponse = "จัดไปครับ! นี่คือรายชื่อร้านอาหารทั้ง 5 ร้านที่ผมคัดมาให้ตามเงื่อนไข (กดปุ่ม Let's Spin เพื่อสุ่มจาก List นี้ได้เลยครับ!)";
-                    let command = {
-                        type: 'RESULT_LIST',
-                        data: [
-                            { id: 901, name: "ส้มตำนัว", food_category: "อาหารอีสาน", price_range: "100-200" },
-                            { id: 902, name: "เจ๊โอว", food_category: "ข้าวต้ม/ยำ", price_range: "200-500" },
-                            { id: 903, name: "Shabu Shi", food_category: "ชาบู", price_range: "over_200" },
-                            { id: 904, name: "ตี๋น้อย", food_category: "สุกี้", price_range: "100-200" },
-                            { id: 905, name: "ก๋วยเตี๋ยวเรือ ป.ประทีป", food_category: "ก๋วยเตี๋ยว", price_range: "under_100" }
-                        ]
-                    };
-                    const aiMsg = { sender: 'AI', text: aiResponse, isSystem: true, command };
-                    room.messages.push(aiMsg);
-                    io.to(roomId).emit('chat-message', aiMsg);
-                }, 1500);
-            }
+            // Success, send final message
+            const aiMsg = { sender: 'AI', text: result.message, isSystem: true };
+            room.messages.push(aiMsg);
+            io.to(roomId).emit('chat-message', aiMsg);
         }
+    });
+
+    socket.on('execute-search', async ({ roomId, dimensions, aiProvider, aiPassword }) => {
+        const room = rooms[roomId];
+        if (!room) return;
+        
+        io.to(roomId).emit('ai-thinking', true);
+        
+        const progressCallback = (msg) => {
+            io.to(roomId).emit('ai-progress', { status: msg });
+        };
+        
+        const { executeRAGSearch } = require('./services/aiService');
+        const result = await executeRAGSearch(dimensions, aiProvider, aiPassword, progressCallback);
+        
+        io.to(roomId).emit('ai-thinking', false);
+        
+        if (result.status === 'result_list') {
+            room.restaurantList = result.data;
+            room.votes = {};
+            room.userVotes = {};
+            room.userNames = {};
+            room.restaurantList.forEach(r => room.votes[r.id] = 0);
+
+            let namesList = room.restaurantList.map((r, i) => `${i + 1}. ${r.name}`).join('\n');
+            let chatText = `${result.message}\n\n${namesList}`;
+
+            const aiMsg = { sender: 'AI', text: chatText, isSystem: true, command: { type: 'RESULT_LIST', data: room.restaurantList } };
+            room.messages.push(aiMsg);
+            io.to(roomId).emit('chat-message', aiMsg);
+        } else {
+        }
+    });
+
+    socket.on('manual-restaurants', ({ roomId, restaurants }) => {
+        const room = rooms[roomId];
+        if (!room) return;
+        
+        room.restaurantList = restaurants;
+        room.votes = {};
+        room.userVotes = {};
+        room.userNames = {};
+        room.restaurantList.forEach(r => room.votes[r.id] = 0);
+
+        const aiMsg = { sender: 'System', text: 'โหมดป้อนร้านเองเริ่มแล้ว! พร้อมโหวตหรือหมุนวงล้อแล้วครับ 🎲', isSystem: true, command: { type: 'RESULT_LIST', data: room.restaurantList } };
+        room.messages.push(aiMsg);
+        io.to(roomId).emit('chat-message', aiMsg);
     });
 
     socket.on('vote', ({ roomId, restaurantId, username }) => {
@@ -455,11 +473,94 @@ io.on('connection', (socket) => {
             }
         }
         
+        const actualParticipants = io.sockets.adapter.rooms.get(roomId)?.size || 1;
         io.to(roomId).emit('update-votes', {
             votes: room.votes,
-            totalParticipants: room.participants,
+            totalParticipants: actualParticipants,
             totalVoted: Object.keys(room.userVotes).length
         });
+    });
+
+    socket.on('generate-batch-result', async ({ roomId, aiProvider, aiPassword }) => {
+        const room = rooms[roomId];
+        if (!room) return;
+        
+        const slots = room.slotState;
+        let aiResponse = "";
+        let listData = [];
+        
+        const prompt = `กรุณาแนะนำร้านอาหาร 5 ร้าน โดยมีเงื่อนไขดังนี้:
+- พิกัด: ${slots.location || 'ไม่ระบุ'}
+- แนวอาหาร: ${slots.category || 'ไม่ระบุ'}
+- มื้ออาหาร: ${slots.meal || 'ไม่ระบุ'}
+- งบประมาณ: ${slots.budget || 'ไม่ระบุ'}
+- แอร์: ${slots.aircon || 'ไม่ระบุ'}
+
+**สำคัญมาก:** คำนึงถึงเวลาเปิด-ปิดของร้านให้เหมาะสมกับ "มื้ออาหาร" ที่ระบุ (เช่น มื้อดึกต้องเป็นร้านที่เปิดดึก/บาร์ มื้อเช้าต้องเป็นร้านที่เปิดเช้า)
+**กฎเหล็ก (CRITICAL):** 
+1. ห้ามแต่งชื่อร้านอาหารขึ้นมาเองเด็ดขาด (No Hallucination)
+2. ร้านที่แนะนำต้องมีอยู่จริงและค้นหาเจอใน Google Maps
+3. หากพิกัดที่ระบุไม่มีร้านที่ตรงเงื่อนไข 100% ให้แนะนำ "ร้านแฟรนไชส์ชื่อดัง" ที่มีสาขาทั่วไป (เช่น MK, Bar B Q Plaza, KFC, สตาร์บัคส์) แทนการแต่งชื่อร้านปลอม
+
+ตอบกลับมาเป็น JSON Array เท่านั้น ห้ามมีข้อความอื่นปน
+ตัวอย่าง JSON:
+[
+  { "id": 1, "name": "ชื่อร้าน", "food_category": "หมวดหมู่", "price_range": "ราคา" }
+]`;
+
+        try {
+            if (aiProvider === 'local') {
+                const db = readData().restaurants;
+                // Simple filter based on category and random slice
+                let filtered = db.filter(r => !slots.category || r.food_category.includes(slots.category));
+                if (filtered.length === 0) filtered = db;
+                listData = filtered.sort(() => 0.5 - Math.random()).slice(0, 5);
+            } else if (aiProvider === 'groq') {
+                const completion = await groq.chat.completions.create({
+                    messages: [
+                        { role: "system", content: "You are a Thai restaurant recommender. Return ONLY valid JSON array." },
+                        { role: "user", content: prompt }
+                    ],
+                    model: "llama-3.3-70b-versatile",
+                });
+                aiResponse = completion.choices[0].message.content;
+                const extracted = extractFinalList(aiResponse);
+                if (extracted && extracted.list) listData = extracted.list;
+            } else if (aiProvider === 'gemini') {
+                if (aiPassword !== process.env.GEMINI_UNLOCK_PASSWORD) {
+                    throw new Error("Invalid Gemini Password");
+                }
+                const model = genAI.getGenerativeModel({ 
+                    model: "gemini-flash-latest"
+                });
+                const geminiPrompt = prompt + "\n\nคำสั่งพิเศษสำหรับ Gemini: ให้คุณใช้ Google Search ค้นหาร้านอาหารที่มีอยู่จริง เปิดให้บริการอยู่จริงๆ ตามพิกัดที่ระบุ และนำชื่อร้านที่ได้จากการค้นหาจริงๆ มาตอบเท่านั้น ห้ามเดาสุ่มเด็ดขาด!";
+                const result = await model.generateContent(geminiPrompt);
+                aiResponse = result.response.text();
+                const extracted = extractFinalList(aiResponse);
+                if (extracted && extracted.list) listData = extracted.list;
+            }
+        } catch (e) {
+            console.error("Batch Gen Error:", e);
+            io.to(roomId).emit('chat-message', { sender: 'AI', text: `⚠️ เกิดข้อผิดพลาดในการรวบรวมข้อมูล: ${e.message}`, isSystem: true });
+            return;
+        }
+
+        if (listData.length > 0) {
+            room.restaurantList = listData;
+            room.votes = {}; room.userVotes = {};
+            listData.forEach(r => room.votes[r.id] = 0);
+            const command = { type: 'RESULT_LIST', data: listData };
+            const aiMsg = { sender: 'AI', text: "🚀 สร้างรายชื่อร้านอาหารเรียบร้อยแล้วครับ! มาเริ่มโหวตกันเลย!", isSystem: true, command };
+            room.messages.push(aiMsg);
+            io.to(roomId).emit('chat-message', aiMsg);
+            
+            setTimeout(() => { 
+                const actualParticipants = io.sockets.adapter.rooms.get(roomId)?.size || 1;
+                io.to(roomId).emit('update-votes', { votes: room.votes, totalParticipants: actualParticipants, totalVoted: 0 }); 
+            }, 500);
+        } else {
+            io.to(roomId).emit('chat-message', { sender: 'AI', text: `⚠️ ไม่สามารถสร้าง JSON จาก AI ได้ครับ โปรดลองใหม่อีกครั้ง`, isSystem: true });
+        }
     });
 
     socket.on('finish-voting', ({ roomId }) => {
@@ -486,13 +587,16 @@ io.on('connection', (socket) => {
             allRestaurants: room.restaurantList,
             finalVotes: room.votes,
             userNames: room.userNames,
-            userVotes: room.userVotes
+            userVotes: room.userVotes,
+            slots: room.slotState
         };
         
         const isTie = winners.length > 1;
+        const btnHtml = `<br><br><button onclick="document.getElementById('room-summary').classList.remove('hidden'); setTimeout(()=>document.getElementById('room-summary').classList.remove('opacity-0'),10);" class="text-sm bg-white text-indigo-600 px-4 py-2 rounded-xl font-bold shadow-sm border border-indigo-100 hover:bg-indigo-50 transition w-full text-center mt-1"><i class="fas fa-chart-pie mr-1"></i> ดูสรุปผลโหวตทั้งหมด</button>`;
+        
         const msgText = isTie 
-            ? `🏆 สรุปผลโหวตแล้วครับ! (เนื่องจากคะแนนเท่ากัน ระบบจึงทำการสุ่มชี้ขาดให้) ผู้ชนะคือร้าน: **${winningRestaurant.name}**`
-            : `🏆 สรุปผลโหวตแล้วครับ! ผู้ชนะคือร้าน: **${winningRestaurant.name}**`;
+            ? `🏆 สรุปผลโหวตแล้วครับ! (คะแนนเท่ากัน ระบบจึงสุ่มชี้ขาดให้) ผู้ชนะคือร้าน: **${winningRestaurant.name}**${btnHtml}`
+            : `🏆 สรุปผลโหวตแล้วครับ! ผู้ชนะคือร้าน: **${winningRestaurant.name}**${btnHtml}`;
             
         const aiMsg = { sender: 'AI', text: msgText, isSystem: true, command };
         room.messages.push(aiMsg);
